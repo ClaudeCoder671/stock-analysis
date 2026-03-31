@@ -6,6 +6,7 @@ import valuation
 import report_generator
 import excel_generator
 import json_exporter
+import email_alerts
 
 CONFIG_FILE = "config.yaml"
 
@@ -77,6 +78,9 @@ def main():
 
     # 6. Export JSON for web viewer
     json_exporter.export_json(companies_data, config.get("groups", {}), config, stock_names)
+
+    # 7. Send email alerts
+    email_alerts.send_alerts(companies_data, stock_names)
 
     print(f"\nDone! Open {excel_file} to view results.")
 
