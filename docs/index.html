@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Li Lu Stock Analysis</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+</head>
+<body>
+
+<header>
+  <h1><span>Li Lu</span> Stock Analysis</h1>
+  <div class="header-meta" id="lastUpdated">Loading...</div>
+</header>
+
+<div class="toolbar" id="toolbar">
+  <input type="text" id="search" placeholder="Search ticker...">
+  <select id="groupFilter">
+    <option value="">All Groups</option>
+  </select>
+</div>
+
+<main>
+  <!-- Dashboard view -->
+  <div id="dashboard">
+    <table class="summary-table">
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Detail view -->
+  <div id="detail">
+    <button class="back-btn" onclick="showDashboard()">&larr; Back to Dashboard</button>
+    <div class="detail-header">
+      <h2 id="detailTicker"></h2>
+      <span class="price" id="detailPrice"></span>
+      <span class="source" id="detailSource"></span>
+    </div>
+    <div class="kpi-row" id="kpiRow"></div>
+    <div class="chart-grid" id="chartGrid"></div>
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+</body>
+</html>

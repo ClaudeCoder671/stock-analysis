@@ -1,0 +1,9 @@
+data/
+__pycache__/
+*.pyc
+*.xlsx
+*.csv
+*.html
+!docs/**
+.env
+*.bat
