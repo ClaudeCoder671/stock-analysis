@@ -198,10 +198,13 @@ async function showDetail(ticker) {
   const grid = document.getElementById("chartGrid");
   grid.innerHTML = peers.map(t => {
     const name = nameMap[t] || t;
+    const s = summaryData.find(r => r.Ticker === t) || {};
+    const rules = buildRulesHtml(s);
     return `<div class="chart-card ${t === ticker ? 'highlighted' : ''}">
        <h3 class="chart-ticker">${t}</h3>
        <div class="chart-name">${name}</div>
        <div class="chart-plot" id="chart-${CSS.escape(t)}"></div>
+       <div class="chart-rules">${rules}</div>
      </div>`;
   }).join("");
 
@@ -295,6 +298,24 @@ function renderComparisonChart(containerId, ticker, ts, axes) {
   };
 
   Plotly.newPlot(containerId, traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function buildRulesHtml(s) {
+  const pePct = s["PE Percentile"];
+  const peerMed = s["Peer Median Percentile"];
+  const roic = s["ROIC"];
+  const fcf = s["FCF Positive"];
+
+  const rules = [
+    { label: "P/E Hist",  val: pePct != null ? `${pePct.toFixed(0)}th pct` : "—",  pass: pePct != null && pePct <= 20 },
+    { label: "vs Peers",  val: pePct != null && peerMed != null ? `${(peerMed - pePct).toFixed(0)}pt gap` : "—", pass: s["PE vs Peers Pass"] },
+    { label: "ROIC",      val: roic != null ? `${(roic * 100).toFixed(0)}%` : "—",  pass: s["ROIC Pass"] },
+    { label: "FCF",       val: fcf ? "+" : "−",                                      pass: fcf },
+  ];
+
+  return rules.map(r =>
+    `<span class="rule-chip ${r.pass ? 'pass' : 'fail'}">${r.label}: ${r.val}</span>`
+  ).join("");
 }
 
 function showDashboard() {

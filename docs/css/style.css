@@ -279,6 +279,32 @@ main {
 /* Full-width chart */
 .chart-card.full { grid-column: 1 / -1; }
 
+/* Buy rule chips below each chart */
+.chart-rules {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.rule-chip {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.rule-chip.pass {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--green);
+}
+.rule-chip.fail {
+  background: rgba(248, 81, 73, 0.1);
+  color: var(--text-muted);
+}
+
 /* Selected stock highlight */
 .chart-card.highlighted {
   border-color: var(--accent);

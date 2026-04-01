@@ -129,6 +129,24 @@ companies:
   - PMT
 
 groups:
+  Stocks to Buy:
+    - GOOGL
+    - TSLA
+    - AAPL
+    - AXP
+    - BAC
+    - KO
+    - CVX
+    - PDD
+    - EWBC
+    - FYGGY
+    - PSTVY
+    - MGCLY
+    - TSM
+    - BYDDY
+    - CIHKY
+    - TCEHY
+    - FNMA
   GOOGL Analysis:
     - GOOGL
     - META

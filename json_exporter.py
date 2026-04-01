@@ -23,6 +23,18 @@ class _Encoder(json.JSONEncoder):
         return super().default(obj)
 
 
+def _compute_pe_percentile(df):
+    """What percentile is the current P/E within its own history? Lower = cheaper."""
+    if df is None or df.empty:
+        return None
+    pe = df["P/E"].dropna()
+    pe = pe[pe > 0]
+    if len(pe) < 20:
+        return None
+    current = pe.iloc[-1]
+    return float((pe < current).sum() / len(pe) * 100)
+
+
 def export_json(companies_data, groups, config, stock_names=None):
     """Write JSON files consumed by the GitHub Pages viewer.
 
@@ -46,6 +58,20 @@ def export_json(companies_data, groups, config, stock_names=None):
     # --- groups.json ------------------------------------------------------
     _write(groups or {}, "groups.json")
 
+    # --- Pre-compute P/E percentiles for all stocks ------------------------
+    pe_percentiles = {}
+    for ticker, df in companies_data.items():
+        pct = _compute_pe_percentile(df)
+        if pct is not None:
+            pe_percentiles[ticker] = pct
+
+    # Compute peer median percentiles per group
+    peer_median_pcts = {}
+    for g_name, g_tickers in (groups or {}).items():
+        pcts = [pe_percentiles[t] for t in g_tickers if t in pe_percentiles]
+        if pcts:
+            peer_median_pcts[g_name] = float(sorted(pcts)[len(pcts) // 2])
+
     # --- Per-ticker JSON + summary ----------------------------------------
     summary = []
 
@@ -61,6 +87,25 @@ def export_json(companies_data, groups, config, stock_names=None):
         last = df.iloc[-1].replace({np.nan: None}).to_dict()
         last["Ticker"] = ticker
         last["Name"] = stock_names.get(ticker, ticker)
+
+        # Buy rule metrics
+        last["PE Percentile"] = pe_percentiles.get(ticker)
+        own_group = f"{ticker} Analysis"
+        last["Peer Median Percentile"] = peer_median_pcts.get(own_group)
+        fcf = last.get("Free Cash Flow")
+        last["FCF Positive"] = fcf is not None and fcf > 0
+        roic = last.get("ROIC")
+        last["ROIC Pass"] = roic is not None and roic > 0.10
+        pe_pct = pe_percentiles.get(ticker)
+        peer_med = peer_median_pcts.get(own_group)
+        last["PE vs Peers Pass"] = (pe_pct is not None and peer_med is not None
+                                     and (peer_med - pe_pct) >= 15)
+        last["All Rules Pass"] = (
+            last.get("PE Percentile") is not None and last["PE Percentile"] <= 20
+            and last["PE vs Peers Pass"]
+            and last["ROIC Pass"]
+            and last["FCF Positive"]
+        )
 
         # Find comparison group
         my_groups = []
