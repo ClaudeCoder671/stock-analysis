@@ -173,6 +173,18 @@ main {
 
 .positive { color: var(--green); }
 .negative { color: var(--red); }
+.buy-signal {
+  color: var(--green);
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(63, 185, 80, 0.4);
+}
+
+/* Tooltip styling for column headers */
+.summary-table th[title] {
+  cursor: help;
+  text-decoration: underline dotted var(--text-muted);
+  text-underline-offset: 3px;
+}
 
 /* --- Detail view ------------------------------------------------------ */
 

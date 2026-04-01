@@ -77,20 +77,44 @@ async function fetchTicker(ticker) {
 // ─── Dashboard table ────────────────────────────────────────────────────
 
 const TABLE_COLS = [
-  { key: "Ticker",              label: "Ticker",     fmt: "str" },
-  { key: "Price",               label: "Price",      fmt: "price" },
-  { key: "P/E",                 label: "P/E",        fmt: "1f" },
-  { key: "P/B",                 label: "P/B",        fmt: "2f" },
-  { key: "ROIC",                label: "ROIC",       fmt: "pct" },
-  { key: "ROE",                 label: "ROE",        fmt: "pct" },
-  { key: "Operating Margin",    label: "Op Margin",  fmt: "pct" },
-  { key: "Net Margin",          label: "Net Margin", fmt: "pct" },
-  { key: "Growth Rate (g)",     label: "g (2Y)",     fmt: "pct" },
-  { key: "YoY Revenue Growth",  label: "YoY Rev",    fmt: "pct" },
-  { key: "FCF Yield",           label: "FCF Yield",  fmt: "pct" },
-  { key: "Debt/Equity",         label: "D/E",        fmt: "2f" },
-  { key: "Price / BG Intrinsic",label: "P/BG",       fmt: "2f" },
-  { key: "Price / (BG + BV)",   label: "P/(BG+BV)",  fmt: "2f" },
+  { key: "Ticker",              label: "Ticker",     fmt: "str",
+    tip: "Stock ticker symbol. Click to view detail charts and peer comparison." },
+  { key: "Price",               label: "Price",      fmt: "price",
+    tip: "Latest weekly closing price in the stock's local currency." },
+  { key: "P/E",                 label: "P/E",        fmt: "1f",
+    tip: "Price-to-Earnings ratio. Share price divided by trailing twelve months earnings per share. Lower means cheaper relative to earnings. Below 15 is generally considered cheap." },
+  { key: "P/B",                 label: "P/B",        fmt: "2f",
+    tip: "Price-to-Book ratio. Share price divided by tangible book value per share (equity minus goodwill and intangibles). Below 1.0 means trading below liquidation value." },
+  { key: "ROIC",                label: "ROIC",       fmt: "pct",
+    tip: "Return on Invested Capital. Net operating profit after tax divided by (equity + debt - cash). Measures how efficiently the business generates profit from its capital. Above 15% indicates a strong competitive moat." },
+  { key: "ROE",                 label: "ROE",        fmt: "pct",
+    tip: "Return on Equity. Net income divided by shareholders' equity. Measures profitability from shareholders' perspective. Can be inflated by high leverage — compare with ROIC." },
+  { key: "Operating Margin",    label: "Op Margin",  fmt: "pct",
+    tip: "Operating Margin. Operating income divided by revenue. Shows what percentage of revenue becomes operating profit before interest and tax. Higher is better — indicates pricing power." },
+  { key: "Net Margin",          label: "Net Margin", fmt: "pct",
+    tip: "Net Margin. Net income divided by revenue. The bottom line — what percentage of revenue the company keeps as profit after all expenses, interest, and tax." },
+  { key: "Growth Rate (g)",     label: "g (2Y)",     fmt: "pct",
+    tip: "Revenue growth rate (g). 2-year compound annual growth rate of revenue. Used in the Benjamin Graham intrinsic value formula." },
+  { key: "YoY Revenue Growth",  label: "YoY Rev",    fmt: "pct",
+    tip: "Year-over-year revenue growth. Current period revenue compared to the same period one year ago." },
+  { key: "FCF Yield",           label: "FCF Yield",  fmt: "pct",
+    tip: "Free Cash Flow Yield. Free cash flow per share divided by share price. Like an earnings yield but based on actual cash generated. Higher means more cash return per pound invested." },
+  { key: "Debt/Equity",         label: "D/E",        fmt: "2f",
+    tip: "Debt-to-Equity ratio. Total debt divided by shareholders' equity. Measures financial leverage. Below 0.5 is conservative, above 2.0 is highly leveraged." },
+  { key: "Price / BG Intrinsic",label: "P/BG",       fmt: "2f",
+    tip: "Price divided by Benjamin Graham intrinsic value. Graham formula: V = EPS × (8.5 + 2g) × 4.4 / Y, where g is growth rate and Y is the Treasury yield. Below 1.0 means trading below calculated intrinsic value." },
+  { key: "Price / (BG + BV)",   label: "P/(BG+BV)",  fmt: "2f",
+    tip: "Price divided by (Graham intrinsic value + tangible book value per share). A more conservative intrinsic value estimate that includes the asset base. Below 1.0 is a strong value signal." },
+  { key: "PE Percentile",       label: "P/E Hist%",  fmt: "0f",
+    tip: "BUY RULE 1: Where the current P/E sits in the stock's own history (0-100). Lower means cheaper than usual. A reading of 15 means the P/E is lower than 85% of its historical values. Buy signal triggers at or below the 20th percentile." },
+  { key: "_peerGap",            label: "Peer Gap",   fmt: "0f",
+    tip: "BUY RULE 2: How many percentage points lower this stock's P/E percentile is versus the median percentile of its peer group. Each stock is compared to its own history, then we compare across the group. A positive gap means this stock is more depressed than its peers. Buy signal triggers at 15+ points." },
+  { key: "ROIC Pass",           label: "ROIC✓",      fmt: "bool",
+    tip: "BUY RULE 3: Does the stock have ROIC above 10%? This filters for quality businesses with durable competitive advantages — the kind Li Lu looks for." },
+  { key: "FCF Positive",        label: "FCF✓",       fmt: "bool",
+    tip: "BUY RULE 4: Is free cash flow positive? Ensures the business generates real cash, not just accounting profits. Filters out value traps." },
+  { key: "All Rules Pass",      label: "BUY?",       fmt: "buy",
+    tip: "All 4 buy rules must pass: (1) P/E in bottom 20th percentile of own history, (2) P/E percentile notably lower than peer median, (3) ROIC above 10%, (4) positive free cash flow." },
 ];
 
 function renderTable() {
@@ -103,10 +127,11 @@ function renderTable() {
 
   if (sortCol !== null) {
     rows = [...rows].sort((a, b) => {
-      let va = a[sortCol], vb = b[sortCol];
+      let va = getRowVal(a, sortCol), vb = getRowVal(b, sortCol);
       if (va == null) return 1;
       if (vb == null) return -1;
       if (typeof va === "string") return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+      if (typeof va === "boolean") return sortAsc ? (va === vb ? 0 : va ? -1 : 1) : (va === vb ? 0 : va ? 1 : -1);
       return sortAsc ? va - vb : vb - va;
     });
   }
@@ -114,12 +139,13 @@ function renderTable() {
   document.getElementById("tableHead").innerHTML = "<tr>" +
     TABLE_COLS.map(c => {
       let cls = sortCol === c.key ? (sortAsc ? "sorted-asc" : "sorted-desc") : "";
-      return `<th class="${cls}" data-col="${c.key}">${c.label}</th>`;
+      const tip = c.tip ? ` title="${c.tip.replace(/"/g, '&quot;')}"` : "";
+      return `<th class="${cls}" data-col="${c.key}"${tip}>${c.label}</th>`;
     }).join("") + "</tr>";
 
   document.getElementById("tableBody").innerHTML = rows.map(row =>
     "<tr>" + TABLE_COLS.map(c => {
-      const v = row[c.key];
+      const v = getRowVal(row, c.key);
       if (c.key === "Ticker")
         return `<td onclick="showDetail('${v}')">${v}</td>`;
       return `<td class="${numClass(v, c)}">${fmtVal(v, c.fmt)}</td>`;
@@ -129,20 +155,37 @@ function renderTable() {
 
 function numClass(v, col) {
   if (v == null) return "";
-  if (col.fmt === "pct") return v > 0 ? "positive" : v < 0 ? "negative" : "";
-  if (col.key === "P/E") return v < 15 ? "positive" : v > 30 ? "negative" : "";
+  if (col.fmt === "bool")  return v ? "positive" : "negative";
+  if (col.fmt === "buy")   return v ? "buy-signal" : "";
+  if (col.fmt === "pct")   return v > 0 ? "positive" : v < 0 ? "negative" : "";
+  if (col.key === "P/E")   return v < 15 ? "positive" : v > 30 ? "negative" : "";
+  if (col.key === "PE Percentile") return v <= 20 ? "positive" : "";
+  if (col.key === "_peerGap") return v >= 15 ? "positive" : "";
   if (col.key.startsWith("Price /")) return v < 1 ? "positive" : v > 1.5 ? "negative" : "";
   return "";
 }
 
 function fmtVal(v, fmt) {
+  if (fmt === "bool")  return v ? "✓" : "✗";
+  if (fmt === "buy")   return v ? "BUY" : "";
   if (v == null) return "\u2014";
   if (fmt === "str")   return v;
   if (fmt === "price") return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (fmt === "1f")    return v.toFixed(1);
   if (fmt === "2f")    return v.toFixed(2);
+  if (fmt === "0f")    return v.toFixed(0);
   if (fmt === "pct")   return (v * 100).toFixed(1) + "%";
   return v;
+}
+
+function getRowVal(row, key) {
+  if (key === "_peerGap") {
+    const own = row["PE Percentile"];
+    const peer = row["Peer Median Percentile"];
+    if (own != null && peer != null) return peer - own;
+    return null;
+  }
+  return row[key];
 }
 
 // ─── Detail view — comparison grid ──────────────────────────────────────
