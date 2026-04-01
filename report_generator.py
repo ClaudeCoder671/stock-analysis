@@ -53,9 +53,9 @@ def generate_html_report(companies_data, filename=REPORT_FILE):
         fig1.update_yaxes(title_text="P/E, P/B", secondary_y=False)
         fig1.update_yaxes(title_text="Price / Intrinsic", secondary_y=True)
 
-        # --- Chart 2: Quality (ROIC, ROE, Margins) ------------------------
+        # --- Chart 2: Quality (ROE, Margins) ---------------------------------
         fig2 = go.Figure()
-        for col, name in [('ROIC', 'ROIC'), ('ROE', 'ROE'),
+        for col, name in [('ROE', 'ROE'),
                           ('Operating Margin', 'Op Margin'), ('Net Margin', 'Net Margin')]:
             if col in df.columns:
                 fig2.add_trace(go.Scatter(x=df['Date'], y=df[col], name=name,

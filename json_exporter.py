@@ -94,8 +94,8 @@ def export_json(companies_data, groups, config, stock_names=None):
         last["Peer Median Percentile"] = peer_median_pcts.get(own_group)
         fcf = last.get("Free Cash Flow")
         last["FCF Positive"] = fcf is not None and fcf > 0
-        roic = last.get("ROIC")
-        last["ROIC Pass"] = roic is not None and roic > 0.10
+        op_margin = last.get("Operating Margin")
+        last["OpMargin Pass"] = op_margin is not None and op_margin > 0.10
         pe_pct = pe_percentiles.get(ticker)
         peer_med = peer_median_pcts.get(own_group)
         last["PE vs Peers Pass"] = (pe_pct is not None and peer_med is not None
@@ -103,7 +103,7 @@ def export_json(companies_data, groups, config, stock_names=None):
         last["All Rules Pass"] = (
             last.get("PE Percentile") is not None and last["PE Percentile"] <= 20
             and last["PE vs Peers Pass"]
-            and last["ROIC Pass"]
+            and last["OpMargin Pass"]
             and last["FCF Positive"]
         )
 

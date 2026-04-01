@@ -16,7 +16,7 @@ SMTP_PORT = 587
 # Thresholds
 PE_PERCENTILE_THRESHOLD = 20   # Bottom 20% of own history
 PEER_PERCENTILE_GAP = 15       # Stock's percentile must be this much below group median percentile
-ROIC_MIN = 0.10                # 10%
+OP_MARGIN_MIN = 0.10           # 10%
 PE_HISTORY_MIN_POINTS = 20     # Need at least 20 weeks of P/E history
 
 
@@ -63,13 +63,13 @@ def send_alerts(companies_data, stock_names=None, groups=None):
         name = stock_names.get(ticker, ticker)
         price = last.get("Price")
         pe = last.get("P/E")
-        roic = last.get("ROIC")
+        op_margin = last.get("Operating Margin")
         fcf = last.get("Free Cash Flow")
         pe_pct = pe_percentiles.get(ticker)
 
         summary_rows.append({
             "ticker": ticker, "name": name, "price": price,
-            "pe": pe, "pb": last.get("P/B"), "roic": roic,
+            "pe": pe, "pb": last.get("P/B"), "op_margin": op_margin,
             "nm": last.get("Net Margin"), "fcf_yield": last.get("FCF Yield"),
             "p_bg": last.get("Price / BG Intrinsic"),
             "pe_pct": pe_pct,
@@ -98,14 +98,14 @@ def send_alerts(companies_data, stock_names=None, groups=None):
         else:
             fails.append(rule3_detail)
 
-        # Rule 4: ROIC > 10%
-        if roic is not None and roic > ROIC_MIN:
-            reasons.append(f"ROIC {roic*100:.1f}% (above {ROIC_MIN*100:.0f}%)")
+        # Rule 4: Operating Margin > 10%
+        if op_margin is not None and op_margin > OP_MARGIN_MIN:
+            reasons.append(f"Op Margin {op_margin*100:.1f}% (above {OP_MARGIN_MIN*100:.0f}%)")
         else:
-            if roic is not None:
-                fails.append(f"ROIC {roic*100:.1f}% (need >{ROIC_MIN*100:.0f}%)")
+            if op_margin is not None:
+                fails.append(f"Op Margin {op_margin*100:.1f}% (need >{OP_MARGIN_MIN*100:.0f}%)")
             else:
-                fails.append("No ROIC data")
+                fails.append("No margin data")
 
         # Rule 5: Positive Free Cash Flow
         if fcf is not None and fcf > 0:
@@ -117,7 +117,7 @@ def send_alerts(companies_data, stock_names=None, groups=None):
         if len(reasons) == 4 and len(fails) == 0:
             buy_signals.append({
                 "ticker": ticker, "name": name, "price": price,
-                "pe": pe, "pe_pct": pe_pct, "roic": roic,
+                "pe": pe, "pe_pct": pe_pct, "op_margin": op_margin,
                 "reasons": reasons,
             })
 
@@ -176,7 +176,7 @@ def _build_html(timestamp, buy_signals, buy_candidates, summary_rows,
         for s in buy_signals:
             html += f'<div style="background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 12px; margin-bottom: 12px;">'
             html += f'<strong style="font-size: 16px;">{s["ticker"]}</strong> <span style="color: #666;">{s["name"]}</span><br>'
-            html += f'<span style="font-size: 14px;">Price: {_fmt_price(s["price"])} &middot; P/E: {_fmt(s["pe"], "1f")} &middot; ROIC: {_fmt(s["roic"], "pct")}</span><br>'
+            html += f'<span style="font-size: 14px;">Price: {_fmt_price(s["price"])} &middot; P/E: {_fmt(s["pe"], "1f")} &middot; Op Margin: {_fmt(s["op_margin"], "pct")}</span><br>'
             html += '<ul style="margin: 6px 0; padding-left: 20px; font-size: 13px;">'
             for r in s["reasons"]:
                 html += f'<li>{r}</li>'
@@ -192,7 +192,7 @@ def _build_html(timestamp, buy_signals, buy_candidates, summary_rows,
              '<th style="padding: 6px; text-align: right;">Price</th>'
              '<th style="padding: 6px; text-align: right;">P/E</th>'
              '<th style="padding: 6px; text-align: right;">P/E Pct</th>'
-             '<th style="padding: 6px; text-align: right;">ROIC</th>'
+             '<th style="padding: 6px; text-align: right;">Op Margin</th>'
              '<th style="padding: 6px; text-align: right;">Net Margin</th>'
              '<th style="padding: 6px; text-align: right;">FCF Yield</th>'
              '<th style="padding: 6px; text-align: right;">P/BG</th>'
@@ -209,7 +209,7 @@ def _build_html(timestamp, buy_signals, buy_candidates, summary_rows,
                  f'<td style="padding: 6px; text-align: right;">{_fmt_price(r["price"])}</td>'
                  f'<td style="padding: 6px; text-align: right;">{_fmt(r["pe"], "1f")}</td>'
                  f'<td style="padding: 6px; text-align: right; color: {pe_pct_color};"><strong>{pe_pct_str}</strong></td>'
-                 f'<td style="padding: 6px; text-align: right;">{_fmt(r["roic"], "pct")}</td>'
+                 f'<td style="padding: 6px; text-align: right;">{_fmt(r["op_margin"], "pct")}</td>'
                  f'<td style="padding: 6px; text-align: right;">{_fmt(r["nm"], "pct")}</td>'
                  f'<td style="padding: 6px; text-align: right;">{_fmt(r.get("fcf_yield"), "pct")}</td>'
                  f'<td style="padding: 6px; text-align: right;">{_fmt(r.get("p_bg"), "2f")}</td>'

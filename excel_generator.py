@@ -67,7 +67,7 @@ def generate_excel_report(companies_data, groups=None, filename=REPORT_FILE):
             # Right axis: growth & intrinsic ratios
             right_metrics = ['YoY Revenue Growth', 'Net Margin',
                              'Price / BG Intrinsic', 'Price / (BG + BV)',
-                             'ROIC', 'ROE', 'FCF Yield']
+                             'ROE', 'FCF Yield']
             for metric in right_metrics:
                 ci = gc(metric)
                 if ci is not None:
@@ -82,7 +82,7 @@ def generate_excel_report(companies_data, groups=None, filename=REPORT_FILE):
             # Dynamic axis ranges based on actual data
             pe_max = _safe_max(df, 'P/E', default=50)
             right_max = max(
-                _safe_max(df, 'ROIC', default=1),
+                _safe_max(df, 'Operating Margin', default=1),
                 _safe_max(df, 'Price / BG Intrinsic', default=3),
                 _safe_max(df, 'Net Margin', default=1),
             )

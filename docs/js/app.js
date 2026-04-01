@@ -85,8 +85,6 @@ const TABLE_COLS = [
     tip: "Price-to-Earnings ratio. Share price divided by trailing twelve months earnings per share. Lower means cheaper relative to earnings. Below 15 is generally considered cheap." },
   { key: "P/B",                 label: "P/B",        fmt: "2f",
     tip: "Price-to-Book ratio. Share price divided by tangible book value per share (equity minus goodwill and intangibles). Below 1.0 means trading below liquidation value." },
-  { key: "ROIC",                label: "ROIC",       fmt: "pct",
-    tip: "Return on Invested Capital. Net operating profit after tax divided by (equity + debt - cash). Measures how efficiently the business generates profit from its capital. Above 15% indicates a strong competitive moat." },
   { key: "ROE",                 label: "ROE",        fmt: "pct",
     tip: "Return on Equity. Net income divided by shareholders' equity. Measures profitability from shareholders' perspective. Can be inflated by high leverage — compare with ROIC." },
   { key: "Operating Margin",    label: "Op Margin",  fmt: "pct",
@@ -109,8 +107,8 @@ const TABLE_COLS = [
     tip: "BUY RULE 1: Where the current P/E sits in the stock's own history (0-100). Lower means cheaper than usual. A reading of 15 means the P/E is lower than 85% of its historical values. Buy signal triggers at or below the 20th percentile." },
   { key: "_peerGap",            label: "Peer Gap",   fmt: "0f",
     tip: "BUY RULE 2: How many percentage points lower this stock's P/E percentile is versus the median percentile of its peer group. Each stock is compared to its own history, then we compare across the group. A positive gap means this stock is more depressed than its peers. Buy signal triggers at 15+ points." },
-  { key: "ROIC Pass",           label: "ROIC✓",      fmt: "bool",
-    tip: "BUY RULE 3: Does the stock have ROIC above 10%? This filters for quality businesses with durable competitive advantages — the kind Li Lu looks for." },
+  { key: "OpMargin Pass",       label: "Margin✓",    fmt: "bool",
+    tip: "BUY RULE 3: Is the operating margin above 10%? Filters for quality businesses with pricing power. Operating margin = operating income / revenue." },
   { key: "FCF Positive",        label: "FCF✓",       fmt: "bool",
     tip: "BUY RULE 4: Is free cash flow positive? Ensures the business generates real cash, not just accounting profits. Filters out value traps." },
   { key: "All Rules Pass",      label: "BUY?",       fmt: "buy",
@@ -207,7 +205,6 @@ async function showDetail(ticker) {
   const kpis = [
     { label: "P/E",       val: snap["P/E"],                fmt: "1f" },
     { label: "P/B",       val: snap["P/B"],                fmt: "2f" },
-    { label: "ROIC",      val: snap["ROIC"],               fmt: "pct" },
     { label: "ROE",       val: snap["ROE"],                fmt: "pct" },
     { label: "Op Margin", val: snap["Operating Margin"],   fmt: "pct" },
     { label: "Net Margin",val: snap["Net Margin"],         fmt: "pct" },
@@ -264,7 +261,6 @@ async function showDetail(ticker) {
       if (r["P/B"] != null)                allLeft.push(r["P/B"]);
       if (r["Net Margin"] != null)         allRight.push(r["Net Margin"] * 100);
       if (r["YoY Revenue Growth"] != null) allRight.push(r["YoY Revenue Growth"] * 100);
-      if (r["ROIC"] != null)              allRight.push(r["ROIC"] * 100);
     }
   }
 
@@ -313,11 +309,6 @@ function renderComparisonChart(containerId, ticker, ts, axes) {
       name: "Rev Growth", yaxis: "y2",
       line: { color: C.growth, width: 2 },
     },
-    {
-      x: dates, y: ts.map(r => r["ROIC"] != null ? r["ROIC"] * 100 : null),
-      name: "ROIC", yaxis: "y2",
-      line: { color: C.roic, width: 2 },
-    },
   ];
 
   const layout = {
@@ -346,13 +337,13 @@ function renderComparisonChart(containerId, ticker, ts, axes) {
 function buildRulesHtml(s) {
   const pePct = s["PE Percentile"];
   const peerMed = s["Peer Median Percentile"];
-  const roic = s["ROIC"];
+  const opMargin = s["Operating Margin"];
   const fcf = s["FCF Positive"];
 
   const rules = [
     { label: "P/E Hist",  val: pePct != null ? `${pePct.toFixed(0)}th pct` : "—",  pass: pePct != null && pePct <= 20 },
     { label: "vs Peers",  val: pePct != null && peerMed != null ? `${(peerMed - pePct).toFixed(0)}pt gap` : "—", pass: s["PE vs Peers Pass"] },
-    { label: "ROIC",      val: roic != null ? `${(roic * 100).toFixed(0)}%` : "—",  pass: s["ROIC Pass"] },
+    { label: "Margin",    val: opMargin != null ? `${(opMargin * 100).toFixed(0)}%` : "—",  pass: s["OpMargin Pass"] },
     { label: "FCF",       val: fcf ? "+" : "−",                                      pass: fcf },
   ];
 

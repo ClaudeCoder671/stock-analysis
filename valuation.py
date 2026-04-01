@@ -231,19 +231,6 @@ def calculate_metrics(data, bond_yield_series=None):
             cash      = _bs_val(q_bs, ['Cash Cash Equivalents And Short Term Investments',
                                         'Cash And Cash Equivalents'], date)
 
-            # Year-ago balance sheet for average invested capital
-            # Try quarterly first, fall back to annual
-            date_1y = date - pd.DateOffset(years=1)
-            equity_1y  = _bs_equity(q_bs, date_1y)
-            tot_debt_1y = _bs_debt(q_bs, date_1y)
-            cash_1y    = _bs_val(q_bs, ['Cash Cash Equivalents And Short Term Investments',
-                                         'Cash And Cash Equivalents'], date_1y)
-            if pd.isna(equity_1y) and a_bs is not None:
-                equity_1y  = _bs_equity(a_bs, date_1y)
-                tot_debt_1y = _bs_debt(a_bs, date_1y)
-                cash_1y    = _bs_val(a_bs, ['Cash Cash Equivalents And Short Term Investments',
-                                             'Cash And Cash Equivalents'], date_1y)
-
             latest_q = q_fin.index[q_fin.index <= date].max() if q_fin is not None else date
             period_end   = latest_q
             period_start = period_end - pd.DateOffset(years=1) + pd.DateOffset(days=1)
@@ -284,13 +271,6 @@ def calculate_metrics(data, bond_yield_series=None):
             tot_debt = _bs_debt(a_bs, anchor)
             cash     = _bs_val(a_bs, ['Cash Cash Equivalents And Short Term Investments',
                                        'Cash And Cash Equivalents'], anchor)
-
-            # Year-ago balance sheet for average invested capital
-            anchor_1y = anchor - pd.DateOffset(years=1)
-            equity_1y   = _bs_equity(a_bs, anchor_1y)
-            tot_debt_1y = _bs_debt(a_bs, anchor_1y)
-            cash_1y     = _bs_val(a_bs, ['Cash Cash Equivalents And Short Term Investments',
-                                          'Cash And Cash Equivalents'], anchor_1y)
 
             period_end   = anchor
             period_start = period_end - pd.DateOffset(years=1) + pd.DateOffset(days=1)
@@ -362,31 +342,6 @@ def calculate_metrics(data, bond_yield_series=None):
                 if denom != 0:
                     p_bg_bv = price / denom
 
-        # ROIC = NOPAT / Average Invested Capital (over 2 periods)
-        # Invested Capital = Equity + Total Debt - Total Cash & Short-Term Investments
-        roic = np.nan
-        tax_rate = np.nan
-        if not pd.isna(raw_tax_val) and not pd.isna(raw_ptx_val) and raw_ptx_val != 0:
-            tax_rate = max(0.0, min(1.0, raw_tax_val / raw_ptx_val))
-        if not pd.isna(raw_oi_val) and not pd.isna(tax_rate):
-            nopat = raw_oi_val * (1 - tax_rate)
-            # Current invested capital
-            ic_now = np.nan
-            if not pd.isna(equity) and not pd.isna(tot_debt) and not pd.isna(cash):
-                ic_now = equity + tot_debt - cash
-            # Year-ago invested capital
-            ic_ago = np.nan
-            if not pd.isna(equity_1y) and not pd.isna(tot_debt_1y) and not pd.isna(cash_1y):
-                ic_ago = equity_1y + tot_debt_1y - cash_1y
-            # Average of both periods; fall back to current if year-ago unavailable
-            if not pd.isna(ic_now) and not pd.isna(ic_ago):
-                avg_ic = (ic_now + ic_ago) / 2
-            elif not pd.isna(ic_now):
-                avg_ic = ic_now
-            else:
-                avg_ic = np.nan
-            if not pd.isna(avg_ic) and avg_ic > 0:
-                roic = nopat / avg_ic
 
         # ROE = Net Income / Equity
         roe = np.nan
@@ -439,7 +394,6 @@ def calculate_metrics(data, bond_yield_series=None):
             "YoY Revenue Growth":   yoy,
             "Net Margin":           nm,
             "Operating Margin":     op_margin,
-            "ROIC":                 roic,
             "ROE":                  roe,
             "FCF Yield":            fcf_yield,
             "Debt/Equity":          de,
