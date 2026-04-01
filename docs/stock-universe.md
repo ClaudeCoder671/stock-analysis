@@ -2,136 +2,136 @@
 
 128 stocks across 17 comparison groups.
 
-| # | Ticker | Company | Groups |
-|---|--------|---------|--------|
-| 1 | AAPL | Apple Inc. | AAPL |
-| 2 | MSFT | Microsoft Corporation | GOOGL, AAPL, TCEHY |
-| 3 | GOOGL | Alphabet Inc. | GOOGL, AAPL, TCEHY |
-| 4 | META | Meta Platforms, Inc. | GOOGL, TCEHY |
-| 5 | AMZN | Amazon.com, Inc. | GOOGL, PDD |
-| 6 | NFLX | Netflix, Inc. | GOOGL |
-| 7 | SNAP | Snap Inc. | GOOGL |
-| 8 | SPOT | Spotify Technology S.A. | GOOGL |
-| 9 | BIDU | Baidu, Inc. | GOOGL, TCEHY |
-| 10 | BABA | Alibaba Group Holding Limited | GOOGL, PDD, TCEHY |
-| 11 | 0700.HK | TENCENT | GOOGL |
-| 12 | TCEHY | Tencent Holding Ltd. | GOOGL, TCEHY |
-| 13 | JD | JD.com, Inc. | GOOGL, PDD |
-| 14 | NTES | NetEase, Inc. | GOOGL, TCEHY |
-| 15 | BILI | Bilibili Inc. | GOOGL, TCEHY |
-| 16 | TSLA | Tesla, Inc. | TSLA, BYDDY |
-| 17 | TM | Toyota Motor Corporation | TSLA, BYDDY |
-| 18 | GM | General Motors Company | TSLA |
-| 19 | F | Ford Motor Company | TSLA |
-| 20 | HMC | Honda Motor Company, Ltd. | TSLA |
-| 21 | 002594.SZ | BYD COMPANY LTD | TSLA |
-| 22 | BYDDY | BYD Co., Ltd. | TSLA, BYDDY |
-| 23 | XPEV | XPeng Inc. | TSLA, BYDDY |
-| 24 | LI | Li Auto Inc. | TSLA, BYDDY |
-| 25 | NIO | NIO Inc. | TSLA, BYDDY |
-| 26 | VWAGY | Volkswagen AG | TSLA, BYDDY |
-| 27 | SMSN.L | Samsung Electronics Co., Ltd. | AAPL |
-| 28 | DELL | Dell Technologies Inc. | AAPL |
-| 29 | XIACF | Xiaomi Corp. | AAPL |
-| 30 | SONY | Sony Group Corporation | AAPL |
-| 31 | AXP | American Express Company | AXP |
-| 32 | V | Visa Inc. | AXP |
-| 33 | MA | Mastercard Incorporated | AXP |
-| 34 | PYPL | PayPal Holdings, Inc. | AXP |
-| 35 | DFS |  | AXP |
-| 36 | JPM | JP Morgan Chase & Co. | AXP, BAC |
-| 37 | BAC | Bank of America Corporation | AXP, BAC |
-| 38 | COF | Capital One Financial Corporati | AXP |
-| 39 | GS | Goldman Sachs Group, Inc. (The) | AXP, BAC |
-| 40 | MS | Morgan Stanley | AXP, BAC |
-| 41 | C | Citigroup, Inc. | AXP, BAC |
-| 42 | WFC | Wells Fargo & Company | BAC |
-| 43 | PNC | PNC Financial Services Group, I | BAC |
-| 44 | USB | U.S. Bancorp | BAC |
-| 45 | TFC | Truist Financial Corporation | BAC |
-| 46 | BK | The Bank of New York Mellon Cor | BAC |
-| 47 | KO | Coca-Cola Company (The) | KO |
-| 48 | PEP | Pepsico, Inc. | KO |
-| 49 | NESN.SW | NESTLE N | KO |
-| 50 | MNST | Monster Beverage Corporation | KO |
-| 51 | CVX | Chevron Corporation | CVX |
-| 52 | XOM | Exxon Mobil Corporation | CVX |
-| 53 | SHEL | Shell PLC | CVX |
-| 54 | BP | BP p.l.c. | CVX |
-| 55 | TTE | TotalEnergies SE | CVX |
-| 56 | COP | ConocoPhillips | CVX |
-| 57 | E | ENI S.p.A. | CVX |
-| 58 | OXY | Occidental Petroleum Corporatio | CVX |
-| 59 | PSX | Phillips 66 | CVX |
-| 60 | VLO | Valero Energy Corporation | CVX |
-| 61 | PDD | PDD Holdings Inc. | PDD |
-| 62 | EBAY | eBay Inc. | PDD |
-| 63 | WMT | Walmart Inc. | PDD |
-| 64 | ZAL.DE | Zalando SE                    I | PDD |
-| 65 | EWBC | East West Bancorp, Inc. | EWBC |
-| 66 | FITB | Fifth Third Bancorp | EWBC |
-| 67 | HBAN | Huntington Bancshares Incorpora | EWBC |
-| 68 | WTFC | Wintrust Financial Corporation | EWBC |
-| 69 | ZION | Zions Bancorporation N.A. | EWBC |
-| 70 | FYGGY | Fuyao Glass Ind Group Co | FYGGY |
-| 71 | 5201.T | AGC INC | FYGGY |
-| 72 | SGO.PA | SAINT GOBAIN | FYGGY |
-| 73 | 5202.T | NIPPON SHEET GLASS CO | FYGGY |
-| 74 | 0868.HK | XINYI GLASS | FYGGY |
-| 75 | 4044.T | CENTRAL GLASS CO | FYGGY |
-| 76 | GLW | Corning Incorporated | FYGGY |
-| 77 | VITROA.MX | VITRO SAB DE CV | FYGGY |
-| 78 | GNTX | Gentex Corporation | FYGGY |
-| 79 | PSTVY | Postal Svgs Bk of China Ltd. | PSTVY, CIHKY |
-| 80 | IDCBY | Industrial and Commercial Bank  | PSTVY, CIHKY |
-| 81 | CICHY | China Construction Bank Corp. | PSTVY, CIHKY |
-| 82 | ACGBY | Agricultural Bank of China | PSTVY, CIHKY |
-| 83 | BACHY | Bank of China, Ltd. | PSTVY, CIHKY |
-| 84 | BKMUY |  | PSTVY, CIHKY |
-| 85 | CIHKY | China Merchants Bank Co., Ltd. | PSTVY, CIHKY |
-| 86 | 601166.SS | INDUSTRIAL BANK CO LTD | PSTVY, CIHKY |
-| 87 | 6818.HK | CEB BANK | PSTVY, CIHKY |
-| 88 | 000001.SZ | PING AN BANK | PSTVY |
-| 89 | 0998.HK | CITIC BANK | PSTVY |
-| 90 | MGCLY | Midea Group Co Ltd. | MGCLY |
-| 91 | 600690.SS | HAIER SMART HOME CO LTD | MGCLY |
-| 92 | 000651.SZ | GREE ELEC APPLICAN | MGCLY |
-| 93 | 000921.SZ | HISENSE HOME APPL. | MGCLY |
-| 94 | WHR | Whirlpool Corporation | MGCLY |
-| 95 | 066570.KS | LGELECTRONICS | MGCLY |
-| 96 | 005930.KS | SamsungElec | MGCLY, TSM |
-| 97 | ELUX-B.ST | Electrolux, AB ser. B | MGCLY |
-| 98 | 6752.T | PANASONIC HOLDINGS CORP | MGCLY |
-| 99 | 6367.T | DAIKIN INDUSTRIES | MGCLY |
-| 100 | CARR | Carrier Global Corporation | MGCLY |
-| 101 | JCI | Johnson Controls International  | MGCLY |
-| 102 | TSM | Taiwan Semiconductor Manufactur | TSM |
-| 103 | INTC | Intel Corporation | TSM |
-| 104 | GFS | GlobalFoundries Inc. | TSM |
-| 105 | UMC | United Microelectronics Corpora | TSM |
-| 106 | 0981.HK | SMIC | TSM |
-| 107 | TXN | Texas Instruments Incorporated | TSM |
-| 108 | MU | Micron Technology, Inc. | TSM |
-| 109 | GELYY |  | BYDDY |
-| 110 | GWLLY | Great Wall Motor Company, Ltd. | BYDDY |
-| 111 | 600104.SS | SAIC MOTOR CORPORATION LIMITED | BYDDY |
-| 112 | STLA | Stellantis N.V. | BYDDY |
-| 113 | OV8.SI | Sheng Siong | CIHKY |
-| 114 | D05.SI | DBS | CIHKY |
-| 115 | 1024.HK | KUAISHOU-W | TCEHY |
-| 116 | WB | Weibo Corporation | TCEHY |
-| 117 | FNMA | Fannie Mae | FNMA |
-| 118 | FMCC | Freddie Mac | FNMA |
-| 119 | MTG | MGIC Investment Corporation | FNMA |
-| 120 | RDN | Radian Group Inc. | FNMA |
-| 121 | ESNT | Essent Group Ltd. | FNMA |
-| 122 | NMI | Nuveen Municipal Income Fund, I | FNMA |
-| 123 | RKT | Rocket Companies, Inc. | FNMA |
-| 124 | UWMC | UWM Holdings Corporation | FNMA |
-| 125 | PFSI | PennyMac Financial Services, In | FNMA |
-| 126 | AGNC | AGNC Investment Corp. | FNMA |
-| 127 | NLY | Annaly Capital Management Inc. | FNMA |
-| 128 | PMT | PennyMac Mortgage Investment Tr | FNMA |
+| # | Ticker | Company | Groups | Buy? |
+|---|--------|---------|--------|------|
+| 1 | AAPL | Apple Inc. | AAPL | Y |
+| 2 | MSFT | Microsoft Corporation | GOOGL, AAPL, TCEHY | N |
+| 3 | GOOGL | Alphabet Inc. | GOOGL, AAPL, TCEHY | Y |
+| 4 | META | Meta Platforms, Inc. | GOOGL, TCEHY | N |
+| 5 | AMZN | Amazon.com, Inc. | GOOGL, PDD | N |
+| 6 | NFLX | Netflix, Inc. | GOOGL | N |
+| 7 | SNAP | Snap Inc. | GOOGL | N |
+| 8 | SPOT | Spotify Technology S.A. | GOOGL | N |
+| 9 | BIDU | Baidu, Inc. | GOOGL, TCEHY | N |
+| 10 | BABA | Alibaba Group Holding Limited | GOOGL, PDD, TCEHY | N |
+| 11 | 0700.HK | TENCENT | GOOGL | N |
+| 12 | TCEHY | Tencent Holding Ltd. | GOOGL, TCEHY | Y |
+| 13 | JD | JD.com, Inc. | GOOGL, PDD | N |
+| 14 | NTES | NetEase, Inc. | GOOGL, TCEHY | N |
+| 15 | BILI | Bilibili Inc. | GOOGL, TCEHY | N |
+| 16 | TSLA | Tesla, Inc. | TSLA, BYDDY | Y |
+| 17 | TM | Toyota Motor Corporation | TSLA, BYDDY | N |
+| 18 | GM | General Motors Company | TSLA | N |
+| 19 | F | Ford Motor Company | TSLA | N |
+| 20 | HMC | Honda Motor Company, Ltd. | TSLA | N |
+| 21 | 002594.SZ | BYD COMPANY LTD | TSLA | N |
+| 22 | BYDDY | BYD Co., Ltd. | TSLA, BYDDY | Y |
+| 23 | XPEV | XPeng Inc. | TSLA, BYDDY | N |
+| 24 | LI | Li Auto Inc. | TSLA, BYDDY | N |
+| 25 | NIO | NIO Inc. | TSLA, BYDDY | N |
+| 26 | VWAGY | Volkswagen AG | TSLA, BYDDY | N |
+| 27 | SMSN.L | Samsung Electronics Co., Ltd. | AAPL | N |
+| 28 | DELL | Dell Technologies Inc. | AAPL | N |
+| 29 | XIACF | Xiaomi Corp. | AAPL | N |
+| 30 | SONY | Sony Group Corporation | AAPL | N |
+| 31 | AXP | American Express Company | AXP | Y |
+| 32 | V | Visa Inc. | AXP | N |
+| 33 | MA | Mastercard Incorporated | AXP | N |
+| 34 | PYPL | PayPal Holdings, Inc. | AXP | N |
+| 35 | DFS |  | AXP | N |
+| 36 | JPM | JP Morgan Chase & Co. | AXP, BAC | N |
+| 37 | BAC | Bank of America Corporation | AXP, BAC | Y |
+| 38 | COF | Capital One Financial Corporati | AXP | N |
+| 39 | GS | Goldman Sachs Group, Inc. (The) | AXP, BAC | N |
+| 40 | MS | Morgan Stanley | AXP, BAC | N |
+| 41 | C | Citigroup, Inc. | AXP, BAC | N |
+| 42 | WFC | Wells Fargo & Company | BAC | N |
+| 43 | PNC | PNC Financial Services Group, I | BAC | N |
+| 44 | USB | U.S. Bancorp | BAC | N |
+| 45 | TFC | Truist Financial Corporation | BAC | N |
+| 46 | BK | The Bank of New York Mellon Cor | BAC | N |
+| 47 | KO | Coca-Cola Company (The) | KO | Y |
+| 48 | PEP | Pepsico, Inc. | KO | N |
+| 49 | NESN.SW | NESTLE N | KO | N |
+| 50 | MNST | Monster Beverage Corporation | KO | N |
+| 51 | CVX | Chevron Corporation | CVX | Y |
+| 52 | XOM | Exxon Mobil Corporation | CVX | N |
+| 53 | SHEL | Shell PLC | CVX | N |
+| 54 | BP | BP p.l.c. | CVX | N |
+| 55 | TTE | TotalEnergies SE | CVX | N |
+| 56 | COP | ConocoPhillips | CVX | N |
+| 57 | E | ENI S.p.A. | CVX | N |
+| 58 | OXY | Occidental Petroleum Corporatio | CVX | N |
+| 59 | PSX | Phillips 66 | CVX | N |
+| 60 | VLO | Valero Energy Corporation | CVX | N |
+| 61 | PDD | PDD Holdings Inc. | PDD | Y |
+| 62 | EBAY | eBay Inc. | PDD | N |
+| 63 | WMT | Walmart Inc. | PDD | N |
+| 64 | ZAL.DE | Zalando SE                    I | PDD | N |
+| 65 | EWBC | East West Bancorp, Inc. | EWBC | Y |
+| 66 | FITB | Fifth Third Bancorp | EWBC | N |
+| 67 | HBAN | Huntington Bancshares Incorpora | EWBC | N |
+| 68 | WTFC | Wintrust Financial Corporation | EWBC | N |
+| 69 | ZION | Zions Bancorporation N.A. | EWBC | N |
+| 70 | FYGGY | Fuyao Glass Ind Group Co | FYGGY | Y |
+| 71 | 5201.T | AGC INC | FYGGY | N |
+| 72 | SGO.PA | SAINT GOBAIN | FYGGY | N |
+| 73 | 5202.T | NIPPON SHEET GLASS CO | FYGGY | N |
+| 74 | 0868.HK | XINYI GLASS | FYGGY | N |
+| 75 | 4044.T | CENTRAL GLASS CO | FYGGY | N |
+| 76 | GLW | Corning Incorporated | FYGGY | N |
+| 77 | VITROA.MX | VITRO SAB DE CV | FYGGY | N |
+| 78 | GNTX | Gentex Corporation | FYGGY | N |
+| 79 | PSTVY | Postal Svgs Bk of China Ltd. | PSTVY, CIHKY | Y |
+| 80 | IDCBY | Industrial and Commercial Bank  | PSTVY, CIHKY | N |
+| 81 | CICHY | China Construction Bank Corp. | PSTVY, CIHKY | N |
+| 82 | ACGBY | Agricultural Bank of China | PSTVY, CIHKY | N |
+| 83 | BACHY | Bank of China, Ltd. | PSTVY, CIHKY | N |
+| 84 | BKMUY |  | PSTVY, CIHKY | N |
+| 85 | CIHKY | China Merchants Bank Co., Ltd. | PSTVY, CIHKY | Y |
+| 86 | 601166.SS | INDUSTRIAL BANK CO LTD | PSTVY, CIHKY | N |
+| 87 | 6818.HK | CEB BANK | PSTVY, CIHKY | N |
+| 88 | 000001.SZ | PING AN BANK | PSTVY | N |
+| 89 | 0998.HK | CITIC BANK | PSTVY | N |
+| 90 | MGCLY | Midea Group Co Ltd. | MGCLY | Y |
+| 91 | 600690.SS | HAIER SMART HOME CO LTD | MGCLY | N |
+| 92 | 000651.SZ | GREE ELEC APPLICAN | MGCLY | N |
+| 93 | 000921.SZ | HISENSE HOME APPL. | MGCLY | N |
+| 94 | WHR | Whirlpool Corporation | MGCLY | N |
+| 95 | 066570.KS | LGELECTRONICS | MGCLY | N |
+| 96 | 005930.KS | SamsungElec | MGCLY, TSM | N |
+| 97 | ELUX-B.ST | Electrolux, AB ser. B | MGCLY | N |
+| 98 | 6752.T | PANASONIC HOLDINGS CORP | MGCLY | N |
+| 99 | 6367.T | DAIKIN INDUSTRIES | MGCLY | N |
+| 100 | CARR | Carrier Global Corporation | MGCLY | N |
+| 101 | JCI | Johnson Controls International  | MGCLY | N |
+| 102 | TSM | Taiwan Semiconductor Manufactur | TSM | Y |
+| 103 | INTC | Intel Corporation | TSM | N |
+| 104 | GFS | GlobalFoundries Inc. | TSM | N |
+| 105 | UMC | United Microelectronics Corpora | TSM | N |
+| 106 | 0981.HK | SMIC | TSM | N |
+| 107 | TXN | Texas Instruments Incorporated | TSM | N |
+| 108 | MU | Micron Technology, Inc. | TSM | N |
+| 109 | GELYY |  | BYDDY | N |
+| 110 | GWLLY | Great Wall Motor Company, Ltd. | BYDDY | N |
+| 111 | 600104.SS | SAIC MOTOR CORPORATION LIMITED | BYDDY | N |
+| 112 | STLA | Stellantis N.V. | BYDDY | N |
+| 113 | OV8.SI | Sheng Siong | CIHKY | N |
+| 114 | D05.SI | DBS | CIHKY | N |
+| 115 | 1024.HK | KUAISHOU-W | TCEHY | N |
+| 116 | WB | Weibo Corporation | TCEHY | N |
+| 117 | FNMA | Fannie Mae | FNMA | Y |
+| 118 | FMCC | Freddie Mac | FNMA | N |
+| 119 | MTG | MGIC Investment Corporation | FNMA | N |
+| 120 | RDN | Radian Group Inc. | FNMA | N |
+| 121 | ESNT | Essent Group Ltd. | FNMA | N |
+| 122 | NMI | Nuveen Municipal Income Fund, I | FNMA | N |
+| 123 | RKT | Rocket Companies, Inc. | FNMA | N |
+| 124 | UWMC | UWM Holdings Corporation | FNMA | N |
+| 125 | PFSI | PennyMac Financial Services, In | FNMA | N |
+| 126 | AGNC | AGNC Investment Corp. | FNMA | N |
+| 127 | NLY | Annaly Capital Management Inc. | FNMA | N |
+| 128 | PMT | PennyMac Mortgage Investment Tr | FNMA | N |
 
 ---
 
@@ -187,4 +187,3 @@ TCEHY (Tencent Holding Ltd.), BABA (Alibaba Group Holding Limited), BIDU (Baidu,
 
 ### FNMA Analysis
 FNMA (Fannie Mae), FMCC (Freddie Mac), MTG (MGIC Investment Corporation), RDN (Radian Group Inc.), ESNT (Essent Group Ltd.), NMI (Nuveen Municipal Income Fund, I), RKT (Rocket Companies, Inc.), UWMC (UWM Holdings Corporation), PFSI (PennyMac Financial Services, In), AGNC (AGNC Investment Corp.), NLY (Annaly Capital Management Inc.), PMT (PennyMac Mortgage Investment Tr)
-
