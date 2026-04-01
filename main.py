@@ -80,7 +80,7 @@ def main():
     json_exporter.export_json(companies_data, config.get("groups", {}), config, stock_names)
 
     # 7. Send email alerts
-    email_alerts.send_alerts(companies_data, stock_names)
+    email_alerts.send_alerts(companies_data, stock_names, config.get("groups", {}))
 
     print(f"\nDone! Open {excel_file} to view results.")
 

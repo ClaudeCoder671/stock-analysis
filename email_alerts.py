@@ -1,8 +1,9 @@
-"""Email alerts: run summary + buy signals after each weekly analysis."""
+"""Email alerts: run summary + Li Lu buy signals after each weekly analysis."""
 
 import smtplib
 import os
 import datetime
+import numpy as np
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -12,24 +13,45 @@ EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD", "")
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
-# Buy signal thresholds
-BUY_THRESHOLDS = {
-    "Price / BG Intrinsic": 1.0,   # Trading below Graham intrinsic value
-    "Price / (BG + BV)": 0.8,      # Trading well below intrinsic + book
-    "P/E": 12,                      # Low P/E
-}
+# Thresholds
+PE_PERCENTILE_THRESHOLD = 20   # Bottom 20% of own history
+PEER_PERCENTILE_GAP = 15       # Stock's percentile must be this much below group median percentile
+ROIC_MIN = 0.10                # 10%
+PE_HISTORY_MIN_POINTS = 20     # Need at least 20 weeks of P/E history
 
 
-def send_alerts(companies_data, stock_names=None):
-    """Analyse all stocks for buy signals and send email summary."""
+def send_alerts(companies_data, stock_names=None, groups=None):
+    """Analyse stocks for buy signals and send email summary."""
     if not EMAIL_PASSWORD:
         print("EMAIL_PASSWORD not set — skipping email alerts.")
         return
 
     if stock_names is None:
         stock_names = {}
+    if groups is None:
+        groups = {}
+
+    # Rule 1: Only group-title stocks can trigger buy alerts
+    buy_candidates = set()
+    for g_name in groups:
+        buy_candidates.add(g_name.replace(" Analysis", ""))
 
     now = datetime.datetime.utcnow().strftime("%d %b %Y %H:%M UTC")
+
+    # Pre-compute each stock's P/E percentile within its own history
+    pe_percentiles = {}
+    for ticker, df in companies_data.items():
+        if df is None or df.empty:
+            continue
+        pe_series = df["P/E"].dropna()
+        pe_series = pe_series[pe_series > 0]
+        if len(pe_series) < PE_HISTORY_MIN_POINTS:
+            continue
+        current_pe = pe_series.iloc[-1]
+        pct = (pe_series < current_pe).sum() / len(pe_series) * 100
+        pe_percentiles[ticker] = pct
+
+    # Find buy signals
     buy_signals = []
     summary_rows = []
 
@@ -41,86 +63,169 @@ def send_alerts(companies_data, stock_names=None):
         name = stock_names.get(ticker, ticker)
         price = last.get("Price")
         pe = last.get("P/E")
-        pb = last.get("P/B")
         roic = last.get("ROIC")
-        p_bg = last.get("Price / BG Intrinsic")
-        p_bg_bv = last.get("Price / (BG + BV)")
-        nm = last.get("Net Margin")
-        fcf_yield = last.get("FCF Yield")
+        fcf = last.get("Free Cash Flow")
+        pe_pct = pe_percentiles.get(ticker)
 
         summary_rows.append({
             "ticker": ticker, "name": name, "price": price,
-            "pe": pe, "pb": pb, "roic": roic, "p_bg": p_bg,
-            "p_bg_bv": p_bg_bv, "nm": nm, "fcf_yield": fcf_yield,
+            "pe": pe, "pb": last.get("P/B"), "roic": roic,
+            "nm": last.get("Net Margin"), "fcf_yield": last.get("FCF Yield"),
+            "p_bg": last.get("Price / BG Intrinsic"),
+            "pe_pct": pe_pct,
         })
 
-        # Check buy signals
+        # Rule 1: Must be a buy candidate
+        if ticker not in buy_candidates:
+            continue
+
         reasons = []
-        if _below(p_bg, BUY_THRESHOLDS["Price / BG Intrinsic"]):
-            reasons.append(f"Price/BG Intrinsic = {p_bg:.2f} (below {BUY_THRESHOLDS['Price / BG Intrinsic']})")
-        if _below(p_bg_bv, BUY_THRESHOLDS["Price / (BG + BV)"]):
-            reasons.append(f"Price/(BG+BV) = {p_bg_bv:.2f} (below {BUY_THRESHOLDS['Price / (BG + BV)']})")
-        if _below(pe, BUY_THRESHOLDS["P/E"]) and pe is not None and pe > 0:
-            reasons.append(f"P/E = {pe:.1f} (below {BUY_THRESHOLDS['P/E']})")
+        fails = []
 
-        if reasons:
-            buy_signals.append({"ticker": ticker, "name": name,
-                                "price": price, "reasons": reasons})
+        # Rule 2: P/E at own historic low (bottom 20th percentile)
+        if pe_pct is not None and pe_pct <= PE_PERCENTILE_THRESHOLD:
+            reasons.append(f"P/E at {pe_pct:.0f}th percentile of own history (threshold: {PE_PERCENTILE_THRESHOLD}th)")
+        else:
+            if pe_pct is not None:
+                fails.append(f"P/E at {pe_pct:.0f}th pct (need ≤{PE_PERCENTILE_THRESHOLD}th)")
+            else:
+                fails.append("Insufficient P/E history")
 
-    # Build email
+        # Rule 3: P/E percentile is low vs peers' percentiles
+        rule3_pass, rule3_detail = _check_peer_percentile(ticker, pe_pct, groups, pe_percentiles)
+        if rule3_pass:
+            reasons.append(rule3_detail)
+        else:
+            fails.append(rule3_detail)
+
+        # Rule 4: ROIC > 10%
+        if roic is not None and roic > ROIC_MIN:
+            reasons.append(f"ROIC {roic*100:.1f}% (above {ROIC_MIN*100:.0f}%)")
+        else:
+            if roic is not None:
+                fails.append(f"ROIC {roic*100:.1f}% (need >{ROIC_MIN*100:.0f}%)")
+            else:
+                fails.append("No ROIC data")
+
+        # Rule 5: Positive Free Cash Flow
+        if fcf is not None and fcf > 0:
+            reasons.append(f"Positive FCF")
+        else:
+            fails.append("Negative or missing FCF")
+
+        # All rules must pass
+        if len(reasons) == 4 and len(fails) == 0:
+            buy_signals.append({
+                "ticker": ticker, "name": name, "price": price,
+                "pe": pe, "pe_pct": pe_pct, "roic": roic,
+                "reasons": reasons,
+            })
+
+    # Build and send email
     subject = f"Stock Analysis Update — {now}"
     if buy_signals:
-        subject = f"🔔 {len(buy_signals)} Buy Signal(s) — {now}"
+        subject = f"BUY SIGNAL: {', '.join(s['ticker'] for s in buy_signals)} — {now}"
 
-    body = _build_html(now, buy_signals, summary_rows, len(companies_data))
+    body = _build_html(now, buy_signals, buy_candidates, summary_rows,
+                        pe_percentiles, groups, len(companies_data))
     _send(subject, body)
 
 
-def _below(val, threshold):
-    return val is not None and val > 0 and val < threshold
+def _check_peer_percentile(ticker, ticker_pct, groups, pe_percentiles):
+    """Rule 3: Check if this stock's P/E percentile is notably lower than
+    the median percentile of its peers in the same group."""
+    if ticker_pct is None:
+        return False, "No P/E percentile data"
+
+    # Find the group this stock is the title of
+    group_name = f"{ticker} Analysis"
+    peers = groups.get(group_name, [])
+    if not peers:
+        return False, "No peer group found"
+
+    peer_pcts = []
+    for p in peers:
+        if p != ticker and p in pe_percentiles:
+            peer_pcts.append(pe_percentiles[p])
+
+    if not peer_pcts:
+        return False, "No peer P/E percentile data"
+
+    median_peer_pct = sorted(peer_pcts)[len(peer_pcts) // 2]
+    gap = median_peer_pct - ticker_pct
+
+    if gap >= PEER_PERCENTILE_GAP:
+        return True, (f"P/E pct {ticker_pct:.0f}th vs peer median {median_peer_pct:.0f}th "
+                       f"(gap: {gap:.0f}pts, threshold: {PEER_PERCENTILE_GAP}pts)")
+    else:
+        return False, (f"P/E pct {ticker_pct:.0f}th vs peer median {median_peer_pct:.0f}th "
+                        f"(gap: {gap:.0f}pts, need ≥{PEER_PERCENTILE_GAP}pts)")
 
 
-def _build_html(timestamp, buy_signals, summary_rows, total_stocks):
+def _build_html(timestamp, buy_signals, buy_candidates, summary_rows,
+                pe_percentiles, groups, total_stocks):
     html = f"""
-    <html><body style="font-family: -apple-system, Arial, sans-serif; color: #333; max-width: 800px;">
+    <html><body style="font-family: -apple-system, Arial, sans-serif; color: #333; max-width: 900px;">
     <h2 style="color: #1a73e8;">Stock Analysis Update</h2>
     <p style="color: #666;">{timestamp} &middot; {total_stocks} stocks analysed</p>
     """
 
-    # Buy signals section
+    # Buy signals
     if buy_signals:
-        html += '<h3 style="color: #d32f2f;">Buy Signals</h3>'
-        html += '<table style="border-collapse: collapse; width: 100%; font-size: 14px;">'
-        html += '<tr style="background: #f5f5f5;"><th style="padding: 8px; text-align: left;">Stock</th><th style="padding: 8px; text-align: right;">Price</th><th style="padding: 8px; text-align: left;">Reasons</th></tr>'
+        html += f'<h3 style="color: #2e7d32;">Buy Signals ({len(buy_signals)})</h3>'
         for s in buy_signals:
-            reasons_html = "<br>".join(s["reasons"])
-            html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px;"><strong>{s["ticker"]}</strong><br><small style="color: #666;">{s["name"]}</small></td><td style="padding: 8px; text-align: right;">{_fmt_price(s["price"])}</td><td style="padding: 8px; font-size: 13px;">{reasons_html}</td></tr>'
-        html += '</table>'
+            html += f'<div style="background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 12px; margin-bottom: 12px;">'
+            html += f'<strong style="font-size: 16px;">{s["ticker"]}</strong> <span style="color: #666;">{s["name"]}</span><br>'
+            html += f'<span style="font-size: 14px;">Price: {_fmt_price(s["price"])} &middot; P/E: {_fmt(s["pe"], "1f")} &middot; ROIC: {_fmt(s["roic"], "pct")}</span><br>'
+            html += '<ul style="margin: 6px 0; padding-left: 20px; font-size: 13px;">'
+            for r in s["reasons"]:
+                html += f'<li>{r}</li>'
+            html += '</ul></div>'
     else:
         html += '<p style="color: #666;">No buy signals this week.</p>'
 
-    # Top metrics summary (top 20 by lowest P/E)
-    html += '<h3 style="color: #1a73e8; margin-top: 24px;">Summary (Top 20 by P/E)</h3>'
-    valid = [r for r in summary_rows if r["pe"] is not None and r["pe"] > 0]
-    valid.sort(key=lambda r: r["pe"])
-    top = valid[:20]
-
+    # Watchlist summary (only buy candidates)
+    html += '<h3 style="color: #1a73e8; margin-top: 24px;">Watchlist</h3>'
     html += '<table style="border-collapse: collapse; width: 100%; font-size: 13px;">'
-    html += '<tr style="background: #f5f5f5;"><th style="padding: 6px; text-align: left;">Stock</th><th style="padding: 6px; text-align: right;">Price</th><th style="padding: 6px; text-align: right;">P/E</th><th style="padding: 6px; text-align: right;">P/B</th><th style="padding: 6px; text-align: right;">ROIC</th><th style="padding: 6px; text-align: right;">Net Margin</th><th style="padding: 6px; text-align: right;">FCF Yield</th><th style="padding: 6px; text-align: right;">P/BG</th></tr>'
-    for r in top:
-        html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 6px;"><strong>{r["ticker"]}</strong></td><td style="padding: 6px; text-align: right;">{_fmt_price(r["price"])}</td><td style="padding: 6px; text-align: right;">{_fmt(r["pe"], "1f")}</td><td style="padding: 6px; text-align: right;">{_fmt(r["pb"], "2f")}</td><td style="padding: 6px; text-align: right;">{_fmt(r["roic"], "pct")}</td><td style="padding: 6px; text-align: right;">{_fmt(r["nm"], "pct")}</td><td style="padding: 6px; text-align: right;">{_fmt(r["fcf_yield"], "pct")}</td><td style="padding: 6px; text-align: right;">{_fmt(r["p_bg"], "2f")}</td></tr>'
-    html += '</table>'
+    html += ('<tr style="background: #f5f5f5;">'
+             '<th style="padding: 6px; text-align: left;">Stock</th>'
+             '<th style="padding: 6px; text-align: right;">Price</th>'
+             '<th style="padding: 6px; text-align: right;">P/E</th>'
+             '<th style="padding: 6px; text-align: right;">P/E Pct</th>'
+             '<th style="padding: 6px; text-align: right;">ROIC</th>'
+             '<th style="padding: 6px; text-align: right;">Net Margin</th>'
+             '<th style="padding: 6px; text-align: right;">FCF Yield</th>'
+             '<th style="padding: 6px; text-align: right;">P/BG</th>'
+             '</tr>')
 
+    watchlist = [r for r in summary_rows if r["ticker"] in buy_candidates]
+    watchlist.sort(key=lambda r: r.get("pe_pct") if r.get("pe_pct") is not None else 999)
+
+    for r in watchlist:
+        pe_pct_str = f'{r["pe_pct"]:.0f}th' if r.get("pe_pct") is not None else "—"
+        pe_pct_color = "#2e7d32" if r.get("pe_pct") is not None and r["pe_pct"] <= PE_PERCENTILE_THRESHOLD else "#333"
+        html += (f'<tr style="border-bottom: 1px solid #eee;">'
+                 f'<td style="padding: 6px;"><strong>{r["ticker"]}</strong></td>'
+                 f'<td style="padding: 6px; text-align: right;">{_fmt_price(r["price"])}</td>'
+                 f'<td style="padding: 6px; text-align: right;">{_fmt(r["pe"], "1f")}</td>'
+                 f'<td style="padding: 6px; text-align: right; color: {pe_pct_color};"><strong>{pe_pct_str}</strong></td>'
+                 f'<td style="padding: 6px; text-align: right;">{_fmt(r["roic"], "pct")}</td>'
+                 f'<td style="padding: 6px; text-align: right;">{_fmt(r["nm"], "pct")}</td>'
+                 f'<td style="padding: 6px; text-align: right;">{_fmt(r.get("fcf_yield"), "pct")}</td>'
+                 f'<td style="padding: 6px; text-align: right;">{_fmt(r.get("p_bg"), "2f")}</td>'
+                 f'</tr>')
+
+    html += '</table>'
     html += '</body></html>'
     return html
 
 
 def _fmt_price(v):
-    if v is None: return "—"
+    if v is None: return "\u2014"
     return f"{v:,.2f}"
 
 def _fmt(v, style):
-    if v is None: return "—"
+    if v is None: return "\u2014"
     if style == "1f": return f"{v:.1f}"
     if style == "2f": return f"{v:.2f}"
     if style == "pct": return f"{v*100:.1f}%"
