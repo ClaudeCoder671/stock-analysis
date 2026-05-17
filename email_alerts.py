@@ -4,6 +4,7 @@ import smtplib
 import os
 import datetime
 import numpy as np
+import pandas as pd
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -73,6 +74,9 @@ def send_alerts(companies_data, stock_names=None, groups=None):
             "nm": last.get("Net Margin"), "fcf_yield": last.get("FCF Yield"),
             "p_bg": last.get("Price / BG Intrinsic"),
             "pe_pct": pe_pct,
+            "eps_1y": _eps_cagr(df, 1),
+            "eps_3y": _eps_cagr(df, 3),
+            "eps_5y": _eps_cagr(df, 5),
         })
 
         # Rule 1: Must be a buy candidate
@@ -189,13 +193,11 @@ def _build_html(timestamp, buy_signals, buy_candidates, summary_rows,
     html += '<table style="border-collapse: collapse; width: 100%; font-size: 13px;">'
     html += ('<tr style="background: #f5f5f5;">'
              '<th style="padding: 6px; text-align: left;">Stock</th>'
-             '<th style="padding: 6px; text-align: right;">Price</th>'
              '<th style="padding: 6px; text-align: right;">P/E</th>'
              '<th style="padding: 6px; text-align: right;">P/E Pct</th>'
-             '<th style="padding: 6px; text-align: right;">Op Margin</th>'
-             '<th style="padding: 6px; text-align: right;">Net Margin</th>'
-             '<th style="padding: 6px; text-align: right;">FCF Yield</th>'
-             '<th style="padding: 6px; text-align: right;">P/BG</th>'
+             '<th style="padding: 6px; text-align: right;">1Y EPS CAGR</th>'
+             '<th style="padding: 6px; text-align: right;">3Y EPS CAGR</th>'
+             '<th style="padding: 6px; text-align: right;">5Y EPS CAGR</th>'
              '</tr>')
 
     watchlist = [r for r in summary_rows if r["ticker"] in buy_candidates]
@@ -206,18 +208,36 @@ def _build_html(timestamp, buy_signals, buy_candidates, summary_rows,
         pe_pct_color = "#2e7d32" if r.get("pe_pct") is not None and r["pe_pct"] <= PE_PERCENTILE_THRESHOLD else "#333"
         html += (f'<tr style="border-bottom: 1px solid #eee;">'
                  f'<td style="padding: 6px;"><strong>{r["ticker"]}</strong></td>'
-                 f'<td style="padding: 6px; text-align: right;">{_fmt_price(r["price"])}</td>'
                  f'<td style="padding: 6px; text-align: right;">{_fmt(r["pe"], "1f")}</td>'
                  f'<td style="padding: 6px; text-align: right; color: {pe_pct_color};"><strong>{pe_pct_str}</strong></td>'
-                 f'<td style="padding: 6px; text-align: right;">{_fmt(r["op_margin"], "pct")}</td>'
-                 f'<td style="padding: 6px; text-align: right;">{_fmt(r["nm"], "pct")}</td>'
-                 f'<td style="padding: 6px; text-align: right;">{_fmt(r.get("fcf_yield"), "pct")}</td>'
-                 f'<td style="padding: 6px; text-align: right;">{_fmt(r.get("p_bg"), "2f")}</td>'
+                 f'<td style="padding: 6px; text-align: right;">{_fmt(r.get("eps_1y"), "pct")}</td>'
+                 f'<td style="padding: 6px; text-align: right;">{_fmt(r.get("eps_3y"), "pct")}</td>'
+                 f'<td style="padding: 6px; text-align: right;">{_fmt(r.get("eps_5y"), "pct")}</td>'
                  f'</tr>')
 
     html += '</table>'
     html += '</body></html>'
     return html
+
+
+def _eps_cagr(df, years):
+    """Compound annual EPS growth rate over the trailing N years.
+    Returns None if either endpoint EPS is missing or <= 0."""
+    if df is None or df.empty or "EPS" not in df.columns or "Date" not in df.columns:
+        return None
+    end_eps = df["EPS"].iloc[-1]
+    if pd.isna(end_eps) or end_eps <= 0:
+        return None
+    dates = pd.to_datetime(df["Date"])
+    target = dates.iloc[-1] - pd.DateOffset(years=years)
+    mask = dates <= target
+    if not mask.any():
+        return None
+    start_idx = dates[mask].index[-1]
+    start_eps = df["EPS"].loc[start_idx]
+    if pd.isna(start_eps) or start_eps <= 0:
+        return None
+    return (end_eps / start_eps) ** (1 / years) - 1
 
 
 def _fmt_price(v):

@@ -107,6 +107,12 @@ companies:
   - 0981.HK
   - TXN
   - MU
+  - ASML
+  - AMAT
+  - LRCX
+  - KLAC
+  - 8035.T
+  - ASM.AS
   - GELYY
   - GWLLY
   - 600104.SS
@@ -127,6 +133,7 @@ companies:
   - AGNC
   - NLY
   - PMT
+  - BRK-B
 
 groups:
   Stocks to Buy:
@@ -146,7 +153,7 @@ groups:
     - BYDDY
     - CIHKY
     - TCEHY
-    - FNMA
+    - ASML
   GOOGL Analysis:
     - GOOGL
     - META
@@ -314,16 +321,22 @@ groups:
     - META
     - GOOGL
     - MSFT
-  FNMA Analysis:
-    - FNMA
-    - FMCC
-    - MTG
-    - RDN
-    - ESNT
-    - NMI
-    - RKT
-    - UWMC
-    - PFSI
-    - AGNC
-    - NLY
-    - PMT
+  ASML Analysis:
+    - ASML
+    - AMAT
+    - LRCX
+    - KLAC
+    - 8035.T
+    - ASM.AS
+  MSFT Analysis:
+    - MSFT
+    - GOOGL
+    - AAPL
+    - AMZN
+    - META
+    - 0700.HK
+    - TCEHY
+    - BABA
+    - BIDU
+  BRK-B Analysis:
+    - BRK-B
