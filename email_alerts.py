@@ -19,6 +19,7 @@ PE_PERCENTILE_THRESHOLD = 20   # Bottom 20% of own history
 PEER_PERCENTILE_GAP = 15       # Stock's percentile must be this much below group median percentile
 OP_MARGIN_MIN = 0.10           # 10%
 PE_HISTORY_MIN_POINTS = 20     # Need at least 20 weeks of P/E history
+CHEAP_PE_PCT_THRESHOLD = 40    # P/E pct below this => render a peer-comparison table at the bottom of the email
 
 
 def send_alerts(companies_data, stock_names=None, groups=None):
@@ -204,7 +205,7 @@ def _build_html(timestamp, buy_signals, buy_candidates, summary_rows,
     watchlist.sort(key=lambda r: r.get("pe_pct") if r.get("pe_pct") is not None else 999)
 
     for r in watchlist:
-        pe_pct_str = f'{r["pe_pct"]:.0f}th' if r.get("pe_pct") is not None else "—"
+        pe_pct_str = _ordinal(r["pe_pct"]) if r.get("pe_pct") is not None else "—"
         pe_pct_color = "#2e7d32" if r.get("pe_pct") is not None and r["pe_pct"] <= PE_PERCENTILE_THRESHOLD else "#333"
         html += (f'<tr style="border-bottom: 1px solid #eee;">'
                  f'<td style="padding: 6px;"><strong>{r["ticker"]}</strong></td>'
@@ -216,33 +217,149 @@ def _build_html(timestamp, buy_signals, buy_candidates, summary_rows,
                  f'</tr>')
 
     html += '</table>'
+
+    # Peer-comparison tables: one for every watchlist stock with a P/E
+    # percentile in the cheap zone (below CHEAP_PE_PCT_THRESHOLD). The
+    # table shows every competitor in its "{TICKER} Analysis" peer group
+    # so the user can sanity-check whether the stock is genuinely cheap
+    # versus peers or just cheap-in-isolation.
+    html += _build_peer_tables(watchlist, summary_rows, groups)
+
     html += '</body></html>'
     return html
 
 
+def _build_peer_tables(watchlist, summary_rows, groups):
+    """One peer-comparison table per cheap watchlist stock."""
+    cheap = [r for r in watchlist
+             if r.get("pe_pct") is not None and r["pe_pct"] < CHEAP_PE_PCT_THRESHOLD]
+    if not cheap:
+        return ""
+
+    by_ticker = {r["ticker"]: r for r in summary_rows}
+
+    html = (f'<h3 style="color: #1a73e8; margin-top: 32px;">'
+            f'Peer comparison &mdash; stocks with P/E below '
+            f'{CHEAP_PE_PCT_THRESHOLD}th percentile of own history</h3>'
+            f'<p style="color: #666; font-size: 13px; margin: 0 0 16px 0;">'
+            f'For each cheap stock below, the table lists every competitor in '
+            f'its analysis group with their P/E, P/E percentile (of own history) '
+            f'and EPS growth.</p>')
+
+    cheap.sort(key=lambda r: r["pe_pct"])
+
+    for r in cheap:
+        ticker = r["ticker"]
+        group_name = f"{ticker} Analysis"
+        peers = groups.get(group_name, [])
+        if not peers:
+            continue
+
+        html += (f'<h4 style="margin-top: 24px; margin-bottom: 6px;">'
+                 f'{ticker} <span style="color: #666; font-weight: normal;">'
+                 f'&middot; {r["name"]} &middot; P/E {_fmt(r["pe"], "1f")} '
+                 f'&middot; {_ordinal(r["pe_pct"])} percentile</span></h4>')
+        html += '<table style="border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 8px;">'
+        html += ('<tr style="background: #f5f5f5;">'
+                 '<th style="padding: 6px; text-align: left;">Stock</th>'
+                 '<th style="padding: 6px; text-align: right;">P/E</th>'
+                 '<th style="padding: 6px; text-align: right;">P/E Pct</th>'
+                 '<th style="padding: 6px; text-align: right;">1Y EPS CAGR</th>'
+                 '<th style="padding: 6px; text-align: right;">3Y EPS CAGR</th>'
+                 '<th style="padding: 6px; text-align: right;">5Y EPS CAGR</th>'
+                 '</tr>')
+
+        # Sort peers: anchor stock first, then ascending P/E pct.
+        peer_rows = []
+        for p in peers:
+            pr = by_ticker.get(p)
+            if pr is not None:
+                peer_rows.append(pr)
+        peer_rows.sort(key=lambda x: (
+            0 if x["ticker"] == ticker else 1,
+            x.get("pe_pct") if x.get("pe_pct") is not None else 999,
+        ))
+
+        for pr in peer_rows:
+            pe_pct_str = _ordinal(pr["pe_pct"]) if pr.get("pe_pct") is not None else "—"
+            is_anchor = pr["ticker"] == ticker
+            row_bg = "#fff8dc" if is_anchor else "transparent"
+            name_html = f'<strong>{pr["ticker"]}</strong>'
+            if is_anchor:
+                name_html += ' <span style="color: #888; font-size: 11px;">(focus)</span>'
+            pe_pct_color = ("#2e7d32" if pr.get("pe_pct") is not None
+                             and pr["pe_pct"] <= PE_PERCENTILE_THRESHOLD else "#333")
+            html += (f'<tr style="border-bottom: 1px solid #eee; background: {row_bg};">'
+                     f'<td style="padding: 6px;">{name_html}</td>'
+                     f'<td style="padding: 6px; text-align: right;">{_fmt(pr.get("pe"), "1f")}</td>'
+                     f'<td style="padding: 6px; text-align: right; color: {pe_pct_color};"><strong>{pe_pct_str}</strong></td>'
+                     f'<td style="padding: 6px; text-align: right;">{_fmt(pr.get("eps_1y"), "pct")}</td>'
+                     f'<td style="padding: 6px; text-align: right;">{_fmt(pr.get("eps_3y"), "pct")}</td>'
+                     f'<td style="padding: 6px; text-align: right;">{_fmt(pr.get("eps_5y"), "pct")}</td>'
+                     f'</tr>')
+        html += '</table>'
+
+    return html
+
+
 def _eps_cagr(df, years):
-    """Compound annual EPS growth rate over the trailing N years.
-    Returns None if either endpoint EPS is missing or <= 0."""
+    """Compound annual EPS growth rate over approximately the trailing N years.
+
+    Picks the row closest to *years* before the latest date — preferring rows
+    at-or-before the target, but falling back to slightly-after-target rows
+    if necessary (handles the case where data only goes back ~4.9 years for
+    Dec-fiscal stocks while we ask for 5 years). The CAGR is annualised
+    against the ACTUAL time span between the chosen anchor and the latest
+    row, so the math stays correct even when the anchor isn't exactly
+    *years* old. Requires at least 60% of the requested span — anything
+    shorter is too noisy to label as a long-term CAGR.
+    """
     if df is None or df.empty or "EPS" not in df.columns or "Date" not in df.columns:
         return None
-    end_eps = df["EPS"].iloc[-1]
+    eps_series = df["EPS"]
+    end_eps = eps_series.iloc[-1]
     if pd.isna(end_eps) or end_eps <= 0:
         return None
     dates = pd.to_datetime(df["Date"])
-    target = dates.iloc[-1] - pd.DateOffset(years=years)
-    mask = dates <= target
-    if not mask.any():
+    end_date = dates.iloc[-1]
+    target = end_date - pd.DateOffset(years=years)
+
+    valid = (eps_series.notna()) & (eps_series > 0)
+    valid_idx = dates[valid].index
+    if len(valid_idx) == 0:
         return None
-    start_idx = dates[mask].index[-1]
-    start_eps = df["EPS"].loc[start_idx]
+
+    # 1. Prefer the latest row at-or-before the 5Y target.
+    before = [i for i in valid_idx if dates.loc[i] <= target]
+    if before:
+        start_idx = before[-1]
+    else:
+        # 2. Fall back to the earliest available row (closest to target).
+        start_idx = valid_idx[0]
+
+    start_date = dates.loc[start_idx]
+    actual_years = (end_date - start_date).days / 365.25
+    if actual_years < years * 0.6 or actual_years <= 0:
+        return None
+    start_eps = eps_series.loc[start_idx]
     if pd.isna(start_eps) or start_eps <= 0:
         return None
-    return (end_eps / start_eps) ** (1 / years) - 1
+    return (end_eps / start_eps) ** (1 / actual_years) - 1
 
 
 def _fmt_price(v):
     if v is None: return "\u2014"
     return f"{v:,.2f}"
+
+
+def _ordinal(n):
+    """Convert an int percentile to 1st / 2nd / 3rd / 4th-style ordinal."""
+    n = int(round(n))
+    if 10 <= (n % 100) <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
 
 def _fmt(v, style):
     if v is None: return "\u2014"

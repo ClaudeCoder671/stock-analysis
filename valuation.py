@@ -84,6 +84,7 @@ def calculate_metrics(data, bond_yield_series=None):
     a_bs  = data.get("annual_balance_sheet")
     q_cf  = data.get("quarterly_cashflow")
     a_cf  = data.get("annual_cashflow")
+    ext_ttm_eps = data.get("extended_ttm_eps")  # deep TTM EPS from stockanalysis
 
     if history is None:
         return None
@@ -92,6 +93,16 @@ def calculate_metrics(data, bond_yield_series=None):
     history.index = pd.to_datetime(history.index, utc=True)
     for df in [q_fin, q_bs, a_fin, a_bs, q_cf, a_cf]:
         _ensure_utc(df)
+
+    # Normalise the extended TTM EPS series index to UTC
+    if ext_ttm_eps is not None and not ext_ttm_eps.empty:
+        ext_ttm_eps = ext_ttm_eps.copy()
+        ext_ttm_eps.index = pd.to_datetime(ext_ttm_eps.index)
+        if ext_ttm_eps.index.tz is None:
+            ext_ttm_eps.index = ext_ttm_eps.index.tz_localize('UTC')
+        else:
+            ext_ttm_eps.index = ext_ttm_eps.index.tz_convert('UTC')
+        ext_ttm_eps = ext_ttm_eps.sort_index()
 
     weekly_prices = history['Close'].resample('W-FRI').last()
 
@@ -156,6 +167,13 @@ def calculate_metrics(data, bond_yield_series=None):
             d = df.index.min()
             if earliest is None or d < earliest:
                 earliest = d
+    # The extended TTM EPS series may go further back than yfinance — let
+    # weekly rows extend back to that point too so the 5Y CAGR lookup has
+    # something to anchor against.
+    if ext_ttm_eps is not None and not ext_ttm_eps.empty:
+        d = ext_ttm_eps.index.min()
+        if earliest is None or d < earliest:
+            earliest = d
     if earliest is not None:
         weekly_prices = weekly_prices[weekly_prices.index >= earliest]
 
@@ -200,6 +218,9 @@ def calculate_metrics(data, bond_yield_series=None):
             raw_eps     = get_ttm_from_quarterly(q_eps, date)
             if pd.isna(raw_eps) and a_eps is not None:
                 raw_eps, _ = get_latest(a_eps, date)
+            # Last-resort: stockanalysis.com deep TTM EPS history
+            if pd.isna(raw_eps) and ext_ttm_eps is not None:
+                raw_eps, _ = get_latest(ext_ttm_eps, date)
 
             raw_ni      = get_ttm_from_quarterly(q_ni, date)
             if pd.isna(raw_ni) and a_ni is not None:
@@ -237,15 +258,31 @@ def calculate_metrics(data, bond_yield_series=None):
 
         else:
             # ---------- Annual path ---------------------------------------
-            if a_fin is None or a_fin.empty:
-                rows.append(_empty_row(date, price, price_curr, fin_curr, fx))
+            # Check whether yfinance annual data is available for this date.
+            annual_available = (
+                a_fin is not None
+                and not a_fin.empty
+                and (a_fin.index <= date).any()
+            )
+
+            if not annual_available:
+                # No yfinance annual yet — try the stockanalysis deep TTM
+                # EPS series so we can at least populate Price + EPS + P/E
+                # for old weekly rows. Without this, 5Y EPS CAGR cannot
+                # anchor against the start of the series.
+                ext_eps_val, _ = (
+                    get_latest(ext_ttm_eps, date) if ext_ttm_eps is not None
+                    else (np.nan, None)
+                )
+                if pd.isna(ext_eps_val):
+                    rows.append(_empty_row(date, price, price_curr, fin_curr, fx))
+                    continue
+
+                rows.append(_extended_only_row(
+                    date, price, ext_eps_val, price_curr, fin_curr, fx))
                 continue
 
             available = a_fin.index[a_fin.index <= date]
-            if len(available) == 0:
-                rows.append(_empty_row(date, price, price_curr, fin_curr, fx))
-                continue
-
             anchor = available.max()
             source = f"Annual ({anchor.strftime('%Y-%m-%d')})"
 
@@ -253,6 +290,14 @@ def calculate_metrics(data, bond_yield_series=None):
             raw_rev_1y, _  = get_latest(a_rev, anchor - pd.DateOffset(years=1))
             raw_rev_2y, _  = get_latest(a_rev, anchor - pd.DateOffset(years=2))
             raw_eps, _     = get_latest(a_eps, anchor)
+            # Prefer stockanalysis TTM EPS when it's more recent than the
+            # latest annual filing (annual EPS lags ~6-9 months; TTM is
+            # rolling 12 months and tracks more closely to "now").
+            if ext_ttm_eps is not None:
+                ext_v, ext_d = get_latest(ext_ttm_eps, date)
+                if not pd.isna(ext_v) and (pd.isna(raw_eps) or
+                                            (ext_d is not None and ext_d > anchor)):
+                    raw_eps = ext_v
             raw_ni, _      = get_latest(a_ni, anchor)
             raw_oi_val, _  = get_latest(a_oi, anchor)
             raw_tax_val, _ = get_latest(a_tax, anchor)
@@ -458,4 +503,26 @@ def _empty_row(date, price, price_curr, fin_curr, fx):
     return {
         "Date": date, "Source": "No Financials", "Price": price,
         "Currency": price_curr, "Financials Currency": fin_curr, "Exchange Rate": fx,
+    }
+
+
+def _extended_only_row(date, price, raw_eps, price_curr, fin_curr, fx):
+    """Row for dates older than yfinance's data depth — populates only the
+    columns derivable from the stockanalysis TTM EPS series (Price, EPS, P/E)
+    plus the currency / FX metadata. All other fields are NaN.
+
+    This is what lets the 5Y EPS CAGR lookup find an anchor value even when
+    yfinance's 4-year window doesn't reach that far back.
+    """
+    eps = np.nan if pd.isna(raw_eps) else raw_eps * fx
+    pe = price / eps if (not pd.isna(eps) and eps > 0 and not pd.isna(price)) else np.nan
+    return {
+        "Date": date,
+        "Source": "Extended TTM EPS",
+        "Price": price,
+        "EPS": eps,
+        "P/E": pe,
+        "Currency": price_curr,
+        "Financials Currency": fin_curr,
+        "Exchange Rate": fx,
     }

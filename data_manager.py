@@ -4,7 +4,21 @@ import os
 import json
 from datetime import datetime
 
+import extended_eps
+
 DATA_DIR = "data"
+
+
+def _fiscal_q4_month(info):
+    """Derive the fiscal Q4 month (1-12) from yfinance info.
+    Default to 12 (calendar year) when unavailable."""
+    ts = info.get("lastFiscalYearEnd") if info else None
+    if ts:
+        try:
+            return datetime.fromtimestamp(int(ts)).month
+        except Exception:
+            pass
+    return 12
 
 def ensure_data_dir():
     if not os.path.exists(DATA_DIR):
@@ -59,6 +73,19 @@ def fetch_data(ticker):
     cashflow = stock.cashflow
     quarterly_cashflow = stock.quarterly_cashflow
 
+    # Deep diluted-EPS history (~20 quarters) from stockanalysis.com so
+    # the 5Y EPS CAGR column has enough lookback. Cached per ticker.
+    ticker_dir = os.path.join(DATA_DIR, ticker)
+    try:
+        ttm_eps_series = extended_eps.fetch_ttm_eps(
+            ticker,
+            fiscal_q4_month=_fiscal_q4_month(stock_info),
+            cache_dir=ticker_dir,
+        )
+    except Exception as e:
+        print(f"Warning: stockanalysis EPS fetch failed for {ticker}: {e}")
+        ttm_eps_series = None
+
     return {
         "history": history,
         "financials": financials,
@@ -68,7 +95,8 @@ def fetch_data(ticker):
         "cashflow": cashflow,
         "quarterly_cashflow": quarterly_cashflow,
         "info": stock_info,
-        "currency_metadata": currency_meta
+        "currency_metadata": currency_meta,
+        "extended_ttm_eps": ttm_eps_series,
     }
 
 def save_data(ticker, data):
@@ -189,12 +217,23 @@ def load_data(ticker):
         
         with open(os.path.join(ticker_dir, "info.json"), "r") as f:
             info = json.load(f)
-            
+
         # Load Currency Metadata
         currency_meta = {}
         if os.path.exists(os.path.join(ticker_dir, "currency_metadata.json")):
             with open(os.path.join(ticker_dir, "currency_metadata.json"), "r") as f:
                 currency_meta = json.load(f)
+
+        # Load extended TTM EPS series (from stockanalysis.com)
+        ttm_eps_series = None
+        ttm_path = os.path.join(ticker_dir, "stockanalysis_ttm_eps.csv")
+        if os.path.exists(ttm_path):
+            try:
+                df = pd.read_csv(ttm_path, index_col=0, parse_dates=True)
+                if not df.empty:
+                    ttm_eps_series = df.iloc[:, 0].dropna()
+            except Exception:
+                pass
 
         return {
             "history": history,
@@ -205,7 +244,8 @@ def load_data(ticker):
             "annual_cashflow": a_cashflow,
             "quarterly_cashflow": q_cashflow,
             "info": info,
-            "currency_metadata": currency_meta
+            "currency_metadata": currency_meta,
+            "extended_ttm_eps": ttm_eps_series,
         }
     except Exception as e:
         print(f"Error loading data for {ticker}: {e}")
