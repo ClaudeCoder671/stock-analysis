@@ -2,6 +2,7 @@
 
 import smtplib
 import os
+import json
 import datetime
 import numpy as np
 import pandas as pd
@@ -229,8 +230,85 @@ def _build_html(timestamp, buy_signals, buy_candidates, summary_rows,
     return html
 
 
+def _annual_eps_at_fiscal_q4(ticker, data_dir="data", n_years=5):
+    """Pull the last *n_years* of annual diluted EPS for *ticker*, indexed by
+    the calendar year the fiscal year ends in.
+
+    Reads the cached stockanalysis TTM-EPS series (`stockanalysis_ttm_eps.csv`)
+    and picks the entries whose month equals the ticker's fiscal Q4 month
+    (derived from yfinance's `lastFiscalYearEnd`). TTM EPS at fiscal Q4 IS
+    the annual EPS — the two are interchangeable.
+
+    Returns OrderedDict-style dict {year: eps}, oldest first. Empty dict
+    when the data isn't available.
+    """
+    ticker_dir = os.path.join(data_dir, ticker)
+    ttm_path = os.path.join(ticker_dir, "stockanalysis_ttm_eps.csv")
+    info_path = os.path.join(ticker_dir, "info.json")
+    if not (os.path.exists(ttm_path) and os.path.exists(info_path)):
+        return {}
+    try:
+        df = pd.read_csv(ttm_path, index_col=0, parse_dates=True)
+        if df.empty:
+            return {}
+        eps = df.iloc[:, 0].dropna().sort_index()
+        if eps.empty:
+            return {}
+
+        with open(info_path) as f:
+            info = json.load(f)
+        ts = info.get("lastFiscalYearEnd")
+        if not ts:
+            return {}
+        fq4_month = datetime.datetime.fromtimestamp(int(ts)).month
+
+        fq4 = eps[eps.index.month == fq4_month]
+        if fq4.empty:
+            return {}
+        fq4 = fq4.iloc[-n_years:]
+        return {dt.year: float(v) for dt, v in fq4.items()}
+    except Exception:
+        return {}
+
+
+def _indexed(values_by_year, base=100):
+    """Rebase a {year: value} dict so the earliest entry = *base*.
+
+    Years with non-positive or missing values are emitted as None so the
+    renderer can show "—". A negative starting value can't be indexed —
+    falls back to the first positive entry as base in that case.
+    """
+    if not values_by_year:
+        return {}
+    years = sorted(values_by_year)
+    base_eps = None
+    for y in years:
+        v = values_by_year[y]
+        if v is not None and v > 0:
+            base_eps = v
+            base_year = y
+            break
+    if base_eps is None:
+        return {y: None for y in years}
+    out = {}
+    for y in years:
+        v = values_by_year.get(y)
+        if v is None or pd.isna(v) or y < base_year:
+            out[y] = None
+        elif y == base_year:
+            out[y] = base
+        else:
+            out[y] = (v / base_eps) * base
+    return out
+
+
 def _build_peer_tables(watchlist, summary_rows, groups):
-    """One peer-comparison table per cheap watchlist stock."""
+    """One peer-comparison table per cheap watchlist stock.
+
+    Each table shows the last 5 fiscal years of EPS *rebased to 100* (so
+    earnings trajectories are directly comparable at a glance, regardless
+    of absolute EPS level), plus a 5Y CAGR column at the right edge.
+    """
     cheap = [r for r in watchlist
              if r.get("pe_pct") is not None and r["pe_pct"] < CHEAP_PE_PCT_THRESHOLD]
     if not cheap:
@@ -242,9 +320,10 @@ def _build_peer_tables(watchlist, summary_rows, groups):
             f'Peer comparison &mdash; stocks with P/E below '
             f'{CHEAP_PE_PCT_THRESHOLD}th percentile of own history</h3>'
             f'<p style="color: #666; font-size: 13px; margin: 0 0 16px 0;">'
-            f'For each cheap stock below, the table lists every competitor in '
-            f'its analysis group with their P/E, P/E percentile (of own history) '
-            f'and EPS growth.</p>')
+            f'Each peer’s EPS is <strong>indexed to 100</strong> at the '
+            f'earliest fiscal year shown, so growth trajectories are directly '
+            f'comparable across companies whose absolute EPS differ. The 5Y '
+            f'CAGR on the right annualises the same growth as a single number.</p>')
 
     cheap.sort(key=lambda r: r["pe_pct"])
 
@@ -255,19 +334,33 @@ def _build_peer_tables(watchlist, summary_rows, groups):
         if not peers:
             continue
 
+        # Pull annual EPS for every peer; compute the union of fiscal years
+        # so the table header matches the data.
+        peer_annual = {}
+        all_years = set()
+        for p in peers:
+            ann = _annual_eps_at_fiscal_q4(p)
+            peer_annual[p] = ann
+            all_years.update(ann.keys())
+        if not all_years:
+            continue
+        # Use only the most recent 5 years across the group
+        year_cols = sorted(all_years)[-5:]
+
         html += (f'<h4 style="margin-top: 24px; margin-bottom: 6px;">'
                  f'{ticker} <span style="color: #666; font-weight: normal;">'
                  f'&middot; {r["name"]} &middot; P/E {_fmt(r["pe"], "1f")} '
                  f'&middot; {_ordinal(r["pe_pct"])} percentile</span></h4>')
         html += '<table style="border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 8px;">'
-        html += ('<tr style="background: #f5f5f5;">'
-                 '<th style="padding: 6px; text-align: left;">Stock</th>'
-                 '<th style="padding: 6px; text-align: right;">P/E</th>'
-                 '<th style="padding: 6px; text-align: right;">P/E Pct</th>'
-                 '<th style="padding: 6px; text-align: right;">1Y EPS CAGR</th>'
-                 '<th style="padding: 6px; text-align: right;">3Y EPS CAGR</th>'
-                 '<th style="padding: 6px; text-align: right;">5Y EPS CAGR</th>'
-                 '</tr>')
+        header = ('<tr style="background: #f5f5f5;">'
+                  '<th style="padding: 6px; text-align: left;">Stock</th>'
+                  '<th style="padding: 6px; text-align: right;">P/E</th>'
+                  '<th style="padding: 6px; text-align: right;">P/E Pct</th>')
+        for y in year_cols:
+            label = f"FY{str(y)[-2:]}"
+            header += f'<th style="padding: 6px; text-align: right;">{label}</th>'
+        header += '<th style="padding: 6px; text-align: right;">5Y CAGR</th></tr>'
+        html += header
 
         # Sort peers: anchor stock first, then ascending P/E pct.
         peer_rows = []
@@ -289,12 +382,29 @@ def _build_peer_tables(watchlist, summary_rows, groups):
                 name_html += ' <span style="color: #888; font-size: 11px;">(focus)</span>'
             pe_pct_color = ("#2e7d32" if pr.get("pe_pct") is not None
                              and pr["pe_pct"] <= PE_PERCENTILE_THRESHOLD else "#333")
+
+            # Build the indexed EPS cells for this peer
+            ann = peer_annual.get(pr["ticker"], {})
+            ann_in_window = {y: ann.get(y) for y in year_cols if y in ann}
+            indexed = _indexed(ann_in_window)
+            year_cells = ""
+            for y in year_cols:
+                v = indexed.get(y)
+                if v is None:
+                    cell = "—"
+                else:
+                    cell = f"{v:.0f}"
+                # Highlight the base column (=100) lightly so the eye anchors there
+                style = "padding: 6px; text-align: right;"
+                if v == 100:
+                    style += " color: #888;"
+                year_cells += f'<td style="{style}">{cell}</td>'
+
             html += (f'<tr style="border-bottom: 1px solid #eee; background: {row_bg};">'
                      f'<td style="padding: 6px;">{name_html}</td>'
                      f'<td style="padding: 6px; text-align: right;">{_fmt(pr.get("pe"), "1f")}</td>'
                      f'<td style="padding: 6px; text-align: right; color: {pe_pct_color};"><strong>{pe_pct_str}</strong></td>'
-                     f'<td style="padding: 6px; text-align: right;">{_fmt(pr.get("eps_1y"), "pct")}</td>'
-                     f'<td style="padding: 6px; text-align: right;">{_fmt(pr.get("eps_3y"), "pct")}</td>'
+                     f'{year_cells}'
                      f'<td style="padding: 6px; text-align: right;">{_fmt(pr.get("eps_5y"), "pct")}</td>'
                      f'</tr>')
         html += '</table>'
