@@ -355,6 +355,24 @@ def calculate_metrics(data, bond_yield_series=None):
         # P/E
         pe = price / eps if (not pd.isna(eps) and eps > 0) else np.nan
 
+        # EV / Earnings = (price − net cash per share) / EPS, where net cash
+        # = cash − total debt (same basis as the quarterly report). Strips
+        # the balance-sheet cash out of the multiple. ALWAYS filled when P/E
+        # is: it defaults to P/E (no cash adjustment) and only departs from it
+        # when a valid, positive cash-adjusted price exists. The P/E default
+        # covers banks/financials (where cash = deposits, so net cash isn't
+        # meaningful and the adjusted price would go negative) and any quarter
+        # missing balance-sheet data — so the column never shows a blank.
+        ev_e = np.nan
+        if not pd.isna(eps) and eps > 0 and not pd.isna(price):
+            ev_e = price / eps
+            if not pd.isna(shares) and shares > 0:
+                net_cash = ((cash_c if not pd.isna(cash_c) else 0.0)
+                            - (debt_c if not pd.isna(debt_c) else 0.0))
+                adj_price = price - net_cash / shares
+                if not pd.isna(adj_price) and adj_price > 0:
+                    ev_e = adj_price / eps
+
         # P/B (tangible)
         pb = price / tangible_bvps \
             if (not pd.isna(tangible_bvps) and tangible_bvps > 0) else np.nan
@@ -435,6 +453,7 @@ def calculate_metrics(data, bond_yield_series=None):
             "FCF Per Share":        fcf_ps,
             "Growth Rate (g)":      g,
             "P/E":                  pe,
+            "EV/E":                 ev_e,
             "P/B":                  pb,
             "YoY Revenue Growth":   yoy,
             "Net Margin":           nm,
